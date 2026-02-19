@@ -1,0 +1,42 @@
+site_name: HANERMA Architecture Docs
+site_description: 'A Production-Grade, Model-Agnostic Orchestration Framework'
+site_url: https://hanerma.ai
+repo_url: https://github.com/hanerma/hanerma
+repo_name: hanerma/hanerma
+
+theme:
+  name: material
+  palette:
+    primary: deep purple
+    accent: cyan
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Architecture:
+    - Three-Deep Thinking: architecture/three_deep.md
+    - HCMS Memory: architecture/infinite_memory.md
+    - AutoPrompt Enhancer: architecture/autoprompt.md
+  - Deployment:
+    - Builder Platform Guide: builder_guide/multi_tenant.md
+    - Custom Tokenizers: builder_guide/custom_tokenizers.md
+  - Benchmarks: benchmarks/gaia_and_tau.md

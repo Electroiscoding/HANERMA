@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hanerma"
+version = "1.0.0"
+description = "Hierarchical Atomic Nested External Reasoning and Memory Architecture. A zero-error LLM orchestrator."
+readme = "README.md"
+authors = [
+    { name = "HANERMA Core Team", email = "open-source@hanerma.ai" }
+]
+license = { text = "Apache 2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "pydantic>=2.0.0",
+    "faiss-cpu>=1.7.4",       # For HCMS Vector indexing
+    "neo4j>=5.10.0",          # For Deep 2 Graph relationships
+    "redis>=5.0.0",           # For multi-tenant state isolation
+    "httpx>=0.24.1",
+    "numpy>=1.24.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.7.0",
+    "mkdocs-material>=9.1.21"
+]
+xerv = [
+    "xerv-crayon>=2.0.0"      # Optional drop-in for competitive tokenization
+]
+
+[project.urls]
+"Homepage" = "https://hanerma.ai"
+"Repository" = "https://github.com/hanerma/hanerma"
+"Bug Tracker" = "https://github.com/hanerma/hanerma/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hanerma-api
+  namespace: default
+  labels:
+    app: hanerma-logic
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hanerma-logic
+  template:
+    metadata:
+      labels:
+        app: hanerma-logic
+    spec:
+      containers:
+      - name: framework-container
+        image: hanerma/core:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "4Gi" # Each pod handles heavy recursive logic
+            cpu: "2000m"
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+        ports:
+        - containerPort: 8000
+        env:
+        - name: NEO4J_URI
+          valueFrom:
+            secretKeyRef:
+              name: hanerma-secrets
+              key: neo4j-uri
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: hanerma-setup
+              key: redis-url
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20

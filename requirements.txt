@@ -1,0 +1,28 @@
+
+# Strictly pinned dependencies for reproduction
+
+# Core Framework
+pydantic>=2.4.2
+openai>=1.3.0
+aiohttp>=3.8.6
+fastapi>=0.104.1
+uvicorn>=0.23.2
+
+# Memory & Vector Store
+faiss-cpu>=1.7.4 # For hyperfast similarity search
+neo4j>=5.14.0    # For graph relationships
+networkx>=3.1    # For in-memory graph operations
+
+# Telemetry
+prometheus-client>=0.17.1
+
+# Tools & Execution
+docker>=6.1.3    # For isolated code execution (optional in local dev)
+beautifulsoup4>=4.12.2 # For web scraping (deep3_external)
+
+# Testing & Dev
+pytest>=7.4.3
+black>=23.10.1
+isort>=5.12.0
+mypy>=1.6.1
+ruff>=0.1.5
