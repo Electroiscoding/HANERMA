@@ -43,9 +43,9 @@ class HANERMAOrchestrator:
         self.active_agents[agent.name] = agent
         print(f"[HANERMA] Agent '{agent.name}' registered with model '{agent.model}'.")
 
-    def run(self, prompt: str, target_agent: str) -> Dict[str, Any]:
+    def run(self, prompt: str, target_agent: str, max_iterations: int = 5) -> Dict[str, Any]:
         """
-        Executes the primary orchestration loop with token-aware metrics.
+        Executes the primary orchestration loop with Native Recursive Tool Calling.
         """
         start_time = time.time()
         print(f"\n[HANERMA Orchestrator] Initializing task ID: {uuid.uuid4().hex[:8]}")
@@ -54,46 +54,103 @@ class HANERMAOrchestrator:
             raise ValueError(f"Agent '{target_agent}' not found in registry.")
 
         agent = self.active_agents[target_agent]
+        current_prompt = self._autoprompt_enhance(prompt)
+        
+        iteration = 0
+        final_output = ""
+        total_latency = 0
+        total_tokens = 0
 
-        # Step 1: AutoPrompt Enhancement
-        enhanced_prompt = self._autoprompt_enhance(prompt)
-        prompt_tokens = self._count_tokens(enhanced_prompt)
+        while iteration < max_iterations:
+            iteration += 1
+            print(f"[HANERMA] Iteration {iteration}...")
 
-        # Step 2: Token-aware history trimming
-        history_text = self._build_history_context()
-        history_tokens = self._count_tokens(history_text) if history_text else 0
+            # 1. Token-aware context check
+            history_text = self._build_history_context()
+            total_input_tokens = self._count_tokens(current_prompt) + self._count_tokens(history_text)
+            
+            if total_input_tokens > self.context_window * 0.85:
+                self._trim_history(self.context_window * 0.5)
 
-        total_input_tokens = prompt_tokens + history_tokens
-        if total_input_tokens > self.context_window * 0.85:
-            self._trim_history(self.context_window * 0.5)
+            # 2. Agent Execution
+            raw_response = agent.execute(current_prompt, self.state_manager)
+            total_tokens += self._count_tokens(raw_response)
 
-        # Step 3: Agent Execution
-        raw_response = agent.execute(enhanced_prompt, self.state_manager)
-        response_tokens = self._count_tokens(raw_response)
+            # 3. Native Tool Execution Detection
+            if "TOOL_CALL:" in raw_response:
+                tool_result = self._handle_tool_call(agent, raw_response)
+                # Feed the tool result back into the next prompt
+                current_prompt = f"[TOOL_RESULT]\n{tool_result}\n\nContinue with your next reasoning step."
+                continue
+            
+            # 4. Atomic Guard (Final Check)
+            is_valid, validation_msg = self.atomic_guard.verify(raw_response)
+            if not is_valid:
+                current_prompt = f"Correct this error: {validation_msg}. Original intent: {prompt}"
+                continue
 
-        # Step 4: Atomic Guard
-        is_valid, validation_msg = self.atomic_guard.verify(raw_response)
-
-        if not is_valid:
-            print(f"[HANERMA WARNING] Atomic Guard failed: {validation_msg}. Initiating recursive correction...")
-            raw_response = agent.execute(
-                f"Correct this error: {validation_msg}. Original prompt: {enhanced_prompt}",
-                self.state_manager
-            )
-            response_tokens = self._count_tokens(raw_response)
+            final_output = raw_response
+            break
 
         latency = (time.time() - start_time) * 1000
 
         return {
             "status": "success",
-            "output": raw_response,
+            "output": final_output,
             "metrics": {
+                "iterations": iteration,
                 "latency_ms": round(latency, 2),
-                "prompt_tokens": prompt_tokens,
-                "response_tokens": response_tokens,
-                "total_tokens": prompt_tokens + response_tokens,
+                "total_tokens": total_tokens,
             }
         }
+
+    def _handle_tool_call(self, agent: BaseAgent, response: str) -> str:
+        """Parses and executes a TOOL_CALL natively using robust regex."""
+        import re
+        import ast
+
+        # Match Pattern: TOOL_CALL: tool_name(key1='val', key2=123)
+        pattern = r"TOOL_CALL:\s*(\w+)\((.*)\)"
+        match = re.search(pattern, response)
+        
+        if not match:
+            return "Error: Could not parse TOOL_CALL format. Ensure you use: TOOL_CALL: name(args)"
+        
+        name = match.group(1)
+        args_str = match.group(2)
+
+        try:
+            # Find the tool in the agent's equipped toolbox
+            tool_func = next((t for t in agent.tools if t.__name__ == name), None)
+            
+            if not tool_func:
+                return f"Error: Tool '{name}' not found."
+
+            # Parse arguments into a dictionary
+            # We wrap the args_str in dict() to utilize ast.literal_eval for safe mapping
+            # Note: This expects key=value format within the parentheses
+            # To handle more complex Python call syntax, we'd use a full AST walker
+            try:
+                # Handle empty args
+                if not args_str.strip():
+                    kwargs = {}
+                else:
+                    # Treat args_str as a sequence of keyword arguments
+                    # This is a naive but 'native' implementation for the showcase
+                    # For production, we'd use a proper regex for key=val pairs
+                    kwargs = {}
+                    for pair in re.findall(r'(\w+)\s*=\s*("[^"]*"|\'[^\']*\'|[^,]+)', args_str):
+                        key, val = pair
+                        kwargs[key] = ast.literal_eval(val.strip())
+            except Exception:
+                return f"Error: Failed to parse arguments '{args_str}'. Use key=value format."
+
+            print(f"[HANERMA] Executing Tool: {name}({kwargs})")
+            result = tool_func(**kwargs)
+            return str(result)
+
+        except Exception as e:
+            return f"Error during tool execution: {e}"
 
     def _autoprompt_enhance(self, prompt: str) -> str:
         """Structural upgrade to the user's prompt."""

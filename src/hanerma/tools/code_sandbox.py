@@ -1,33 +1,80 @@
 
-"""
-Safe isolated code execution environment.
-Preferably uses Docker or gWizard containment.
-"""
-# import docker
-from typing import Dict, Any
+import sys
+import io
+import traceback
+import ast
+from typing import Any, Dict
 
-class CodeSandbox:
-    """Executes code in a secure container."""
-    
-    def __init__(self, use_docker: bool = False):
-        self.use_docker = use_docker
-        # self.client = docker.from_env() if use_docker else None
+class NativeCodeSandbox:
+    """
+    A professional-grade, persistent Python execution environment.
+    Designed for bare-metal execution of complex logic, audits, and computations.
+    """
+    def __init__(self):
+        # A persistent global namespace for the lifecycle of the sandbox
+        self.globals: Dict[str, Any] = {
+            "__builtins__": __builtins__
+        }
+
+    def execute_code(self, code: str) -> str:
+        """
+        Executes raw Python code. Captures all output and evaluates the 
+        final expression if one exists (REPL behavior).
+        """
+        # Capture both stdout and stderr
+        stdout_capture = io.StringIO()
+        stderr_capture = io.StringIO()
         
-    async def run_python(self, code: str) -> Dict[str, str]:
-        """
-        Runs Python code safely and captures stdout/stderr.
-        """
-        if self.use_docker:
-            # container = self.client.containers.run("python:3.9-slim", f"python -c '{code}'", detach=True)
-            # logs = container.logs()
-            # return logs
-            return {"stdout": "Docker execution placeholder"}
-            
-        # DANGER: Local execution for dev only
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = stdout_capture
+        sys.stderr = stderr_capture
+        
         try:
-            # CAUTION with exec
-            local_vars = {}
-            exec(code, {}, local_vars)
-            return {"stdout": str(local_vars), "stderr": ""}
-        except Exception as e:
-            return {"stdout": "", "stderr": str(e)}
+            # 1. Parse the code into an AST (Abstract Syntax Tree)
+            tree = ast.parse(code)
+            
+            # 2. If the last statement is an expression, we want to capture its value
+            # This allows "x = 5; x" to return '5' natively.
+            last_node = tree.body[-1] if tree.body else None
+            is_expression = isinstance(last_node, ast.Expr)
+            
+            if is_expression:
+                # Remove the last expression from the body to exec it separately
+                # but only after executing everything else
+                expr_to_eval = tree.body.pop()
+                # Compile and execute the main body
+                exec(compile(tree, filename="<sandbox>", mode="exec"), self.globals)
+                # Now evaluate the last expression
+                expr_code = compile(ast.Expression(expr_to_eval.value), filename="<sandbox>", mode="eval")
+                result = eval(expr_code, self.globals)
+            else:
+                # Compile and execute the entire block as a script
+                exec(compile(tree, filename="<sandbox>", mode="exec"), self.globals)
+                result = None
+
+            # Collect output
+            output = stdout_capture.getvalue()
+            errors = stderr_capture.getvalue()
+            
+            response = ""
+            if output:
+                response += output
+            if errors:
+                response += f"\n[STDERR]\n{errors}"
+            if is_expression and result is not None:
+                response += f"\n[RETURN]\n{repr(result)}"
+            
+            return response.strip() if response else "[Done: No Output]"
+
+        except Exception:
+            # Return full native traceback for debugging
+            return f"[Runtime Error]\n{traceback.format_exc()}"
+        finally:
+            # Restore system streams
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+    def clear_state(self):
+        """Reset the namespace."""
+        self.globals = {"__builtins__": __builtins__}
