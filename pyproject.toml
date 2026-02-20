@@ -39,5 +39,8 @@ dev = [
 "Repository" = "https://github.com/hanerma/hanerma"
 "Bug Tracker" = "https://github.com/hanerma/hanerma/issues"
 
+[project.scripts]
+hanerma = "hanerma.server.main:cli"
+
 [tool.setuptools.packages.find]
 where = ["src"]

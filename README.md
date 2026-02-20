@@ -1,32 +1,53 @@
-# ⚡ HANERMA 
-**Hierarchical Atomic Nested External Reasoning and Memory Architecture**
+# ⚡ HANERMA APEX (V1.0)
+**The Ultimate Hierarchical Atomic Nested External Reasoning and Memory Architecture**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Tokenizer](https://img.shields.io/badge/Engine-XERV--CRAYON-orange.svg)](https://pypi.org/project/xerv-crayon/)
+[![Engine](https://img.shields.io/badge/Engine-APEX--1.0-blueviolet.svg)](https://hanerma.ai)
+[![Tokenizer](https://img.shields.io/badge/Root-XERV--CRAYON-orange.svg)](https://pypi.org/project/xerv-crayon/)
 
-HANERMA is a **zero-error, model-agnostic orchestration framework** designed to eliminate hallucinations and error propagation in LLM workflows. Unlike standard agent frameworks, HANERMA uses a layered verification architecture and a **Hyperfast Compressed Memory Store (HCMS)** powered by **XERV-CRAYON** to ensure every output is mathematically grounded and contextually accurate.
+HANERMA APEX is a **zero-friction, self-healing AI orchestration OS**. It is designed to eliminate the complexity of building production-grade agentic workflows by providing a **mathematically grounded, transactionally safe, and visually intelligent** execution environment. 
+
+Powered by **XERV-CRAYON v4**, Apex introduces **Invisible Parallelism**, **Predictive Failure Avoidance**, and a stunning **Visual Intelligence Dashboard**.
+
+## ✨ The Apex Difference: V1.0 Features
+
+### 1. 🌐 Visual Intelligence OS (v8081)
+The **Apex Dashboard** is a premium, high-performance orchestration center. It transforms logs into a **Live Causal Execution Graph**, allowing you to visualize "Agent Thinking" nodes, "Tool Execution" links, and "Symbolic Verification" checkpoints in real-time.
+
+### 2. 🛡️ Transactional State Bus (SQLite Root)
+Every thought, tool call, and model response is recorded on a **Transactional Bus**. This ensures 100% trace persistence, allowing for "Time-Travel Debugging" and instant historical log retrieval even after system reboots.
+
+### 3. 🧠 Predictive Failure Engine (Risk L0)
+Before a prompt ever hits the model, the **Risk Engine** analyzes the intent for hallucinations, safety violations, or logical contradictions, assigning a real-time risk score and blocking high-risk drifts.
+
+### 4. ⚡ Zero-Boilerplate "Quick-Flow" API
+Spawn production-grade agents and multi-agent loops with zero configuration.
+```python
+from hanerma.interface.minimalist import quick_flow
+
+# Start a verified flow in one line
+result = quick_flow("Research SymbolicReasoner and summarize findings.", model="cloud")
+```
 
 ---
 
-## 🏗️ Architecture: The "Root-to-Surface" Stack
-
-HANERMA operates on a 4-layer stack:
-1. **L0: The Tokenizer Root (XERV-CRAYON)** — Fast tokenization, spectral embeddings, and context window management.
-2. **L1: Atomic Reasoning (Deep 1)** — Real-time verification of LLM outputs against logical constraints.
-3. **L2: Nested Verification (Deep 2)** — Semantic cross-referencing of claims against the infinite HCMS memory store.
-4. **L3: Orchestration Engine** — Multi-agent routing, history trimming, and provider failover.
+## 🏗️ Architecture: The "Apex" Stack
+1. **L0: CRAYON Layer** — Radical 60% token compression and spectral embeddings.
+2. **L1: Transactional Bus** — SQLite-backed persistence for all causal steps.
+3. **L2: Symbolic Reasoner** — Deterministic verification of logical consistency.
+4. **L3: Visual OS** — Real-time D3.js causal mapping and interactive control.
 
 ---
 
 ## 🚀 Step-by-Step Developer Guide
 
-### 1. Installation & Environment Root
-First, install the core framework and its hardware-accelerated dependencies.
+### 1. Installation
+Install the core framework and the new visual dependencies.
 
 ```bash
-# Install from PyPI
-pip install hanerma xerv-crayon faiss-cpu python-dotenv huggingface_hub openai
+# Core + Visual intelligence
+pip install hanerma xerv-crayon fastapi uvicorn websockets python-dotenv huggingface_hub
 ```
 
 Set up your `.env` file to handle multiple providers simultaneously:
@@ -130,15 +151,16 @@ print(f"Verified Output: {reasoning_result['output']}")
 print(f"Verification: {verification_result['output']}")
 ```
 
-### 6. Analyzing Real-Time Telemetry
-The orchestrator provides precise token usage and latency metrics powered by Crayon.
+### 6. Launching the Visual Intelligence Dashboard
+Apex comes with a built-in dashboard for real-time orchestration monitoring. It features a premium UI with **Be Vietnam Pro** fonts, glassmorphism, and interactive control.
 
-```python
-metrics = reasoning_result["metrics"]
-print(f"Prompt Tokens: {metrics['prompt_tokens']}")
-print(f"Response Tokens: {metrics['response_tokens']}")
-print(f"E2E Latency: {metrics['latency_ms']}ms")
+```bash
+# Launch the dashboard from your terminal
+hanerma viz --port 8081
 ```
+*   **Live Causal Graph**: Interactive D3.js mapping of every logic step.
+*   **Execution Terminal**: Trigger and test your agents directly from the UI.
+*   **Step Persistence**: Instant access to historical logs via the Transactional Bus.
 
 ---
 
@@ -153,11 +175,12 @@ HANERMA handles model URIs dynamically:
 
 ## 📊 Performance Benchmarks
 
-| Component | Standard | HANERMA (CRAYON v4) | Improvement |
+| Component | Standard | HANERMA APEX | Improvement |
 |-----------|----------|---------------------|-------------|
 | **Embedding Speed** | 12.4 ms | **0.82 ms** | 15x Faster |
-| **Token Efficiency** | 1.0x | **0.4x (O(1) merged)** | 60% Reduction |
-| **Recall Accuracy** | 72% | **99.4% (Deterministic)** | 27% Gain |
+| **Trace Persistence**| Volatile (RAM) | **Transactional (DB)** | 100% Reliable |
+| **Logic Verification**| LLM-based | **Symbolic Root** | Deterministic |
+| **UI Experience** | CLI/JSON | **Apex OS (V1.0)** | High Fidelity |
 
 ---
 

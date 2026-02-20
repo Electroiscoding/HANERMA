@@ -49,4 +49,15 @@ async def chat_with_agent(req: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal orchestration failure.")
 
-# To run locally: uvicorn main:app --reload
+def cli():
+    """CLI entry point for hanerma command."""
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "viz":
+        from hanerma.observability.viz_server import start_viz
+        start_viz()
+    else:
+        print("Usage: hanerma viz")
+
+if __name__ == "__main__":
+    # To run locally: uvicorn main:app --reload
+    pass
