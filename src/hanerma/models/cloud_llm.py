@@ -1,29 +1,52 @@
-from typing import List, Dict, Optional
+"""
+Cloud LLM Adapters — OpenRouter + HuggingFace.
+Both use the standard OpenAI SDK with a swapped base_url.
+No vendor lock-in. No Grok monopoly.
+"""
+
 import os
-import requests
-import json
+from openai import OpenAI
 
-class CloudLLM:
-    """
-    Connects to xAI (Grok), Anthropic (Claude), or OpenAI (GPT) APIs.
-    Used for Deep 2/3 validation where pure power is more critical than latency.
-    """
-    def __init__(self, provider: str = "xai", model_name: str = "grok-4.2"):
-        self.provider = provider
+
+class OpenRouterAdapter:
+    """Routes HANERMA to 300+ models via OpenRouter's unified gateway."""
+
+    def __init__(self, model_name: str = "anthropic/claude-3.5-sonnet"):
         self.model_name = model_name
-        self.api_key = os.getenv(f"{provider.upper()}_API_KEY", "")
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+        )
 
-    def generate(self, messages: List[Dict[str, str]]) -> str:
-        """
-        Abstracted generation method that handles provider-specific payloads.
-        """
-        if self.provider == "xai":
-             # Simulated xAI API call for this reference implementation
-             print(f"[Cloud LLM] Sending Request to Grok: {messages[-1]['content'][:40]}...")
-             return f"Grok ({self.model_name}) Reasoning: Confirmed via internal chain-of-thought."
-             
-        elif self.provider == "anthropic":
-             # Placeholder for Claude Sonnet logic
-             return "Claude Response"
-        
-        return "Unknown Provider Error"
+    def generate(self, prompt: str, system_prompt: str = "") -> str:
+        print(f"[OpenRouter] Executing intent on: {self.model_name}")
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return response.choices[0].message.content
+
+
+class HuggingFaceAdapter:
+    """Routes HANERMA to Hugging Face Serverless Inference API."""
+
+    def __init__(self, model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct"):
+        self.model_name = model_name
+        self.client = OpenAI(
+            base_url="https://router.huggingface.co/v1",
+            api_key=os.getenv("HF_TOKEN"),
+        )
+
+    def generate(self, prompt: str, system_prompt: str = "") -> str:
+        print(f"[HuggingFace] Executing intent on: {self.model_name}")
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return response.choices[0].message.content

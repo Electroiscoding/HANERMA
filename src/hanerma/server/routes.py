@@ -9,7 +9,7 @@ api_router = APIRouter()
 
 # Dependency Injection for clean architecture
 def get_orchestrator():
-    return HANERMAOrchestrator(model="grok-4.2")
+    return HANERMAOrchestrator(model="local-llama3")
 
 def get_registry():
     return PersonaRegistry()

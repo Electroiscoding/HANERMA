@@ -11,7 +11,7 @@ app = FastAPI(title="HANERMA OS API", version="1.0.0")
 
 # Initialize global framework singletons
 registry = PersonaRegistry()
-orchestrator = HANERMAOrchestrator(model="grok-4.2")
+orchestrator = HANERMAOrchestrator(model="local-llama3")
 
 class SetupPersonaRequest(BaseModel):
     builder_id: str

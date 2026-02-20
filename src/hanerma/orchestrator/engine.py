@@ -10,7 +10,7 @@ class HANERMAOrchestrator:
     The core engine for the Hierarchical Atomic Nested External Reasoning and Memory Architecture.
     Handles routing, multi-tenant state isolation, and zero-error loops.
     """
-    def __init__(self, model: str = "local-llama", tokenizer_adapter: Optional[Any] = None):
+    def __init__(self, model: str = "local-llama3", tokenizer_adapter: Optional[Any] = None):
         self.orchestrator_id = str(uuid.uuid4())
         self.default_model = model
         self.tokenizer = tokenizer_adapter # Hook for highly competitive custom tokenizers

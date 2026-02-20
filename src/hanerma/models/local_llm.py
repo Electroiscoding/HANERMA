@@ -1,34 +1,31 @@
-from typing import List, Dict
-import requests
-import json
+"""
+100% Local LLM Adapter.
+Talks to Ollama, vLLM, LM Studio, or llama-server — whatever is
+running on the developer's machine.  Zero internet required.
+"""
 
-class LocalLLM:
-    """
-    Connects to Ollama, LM Studio, or vLLM backends running on localhost.
-    Allows HANERMA to run completely offline without API costs.
-    """
-    def __init__(self, endpoint: str = "http://localhost:11434", model: str = "llama3"):
+import httpx
+
+
+class LocalLLMAdapter:
+    """100% Local Execution via Ollama / vLLM.  Zero internet required."""
+
+    def __init__(
+        self,
+        model_name: str = "llama3",
+        endpoint: str = "http://localhost:11434/api/generate",
+    ):
+        self.model_name = model_name
         self.endpoint = endpoint
-        self.model = model
-        print(f"[Local LLM] Connected to {self.model} at {self.endpoint}")
 
-    def generate(self, prompt: str) -> str:
-        """
-        Standard Ollama 'generate' endpoint wrapper.
-        """
+    def generate(self, prompt: str, system_prompt: str = "") -> str:
+        print(f"[Local] Executing intent on offline model: {self.model_name}")
         payload = {
-            "model": self.model,
+            "model": self.model_name,
             "prompt": prompt,
-            "stream": False
+            "system": system_prompt,
+            "stream": False,
         }
-        
-        try:
-            resp = requests.post(f"{self.endpoint}/api/generate", json=payload, timeout=30)
-            resp.raise_for_status()
-            
-            # Ollama returns one JSON object per line if streaming, 
-            # but we requested stream=False so we get one big object.
-            return resp.json().get("response", "")
-            
-        except requests.exceptions.RequestException as e:
-            return f"[Local LLM Error] Could not connect: {str(e)}"
+        response = httpx.post(self.endpoint, json=payload, timeout=120.0)
+        response.raise_for_status()
+        return response.json().get("response", "")

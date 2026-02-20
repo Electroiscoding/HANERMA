@@ -19,7 +19,9 @@ dependencies = [
     "faiss-cpu>=1.7.4",       # For HCMS Vector indexing
     "neo4j>=5.10.0",          # For Deep 2 Graph relationships
     "redis>=5.0.0",           # For multi-tenant state isolation
-    "httpx>=0.24.1",
+    "httpx>=0.24.1",          # For local LLM adapter
+    "openai>=1.0.0",          # OpenRouter + HuggingFace adapters
+    "python-dotenv>=1.0.0",   # Secure credential loading
     "numpy>=1.24.0"
 ]
 

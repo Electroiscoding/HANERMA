@@ -4,7 +4,7 @@
 ## Methodology
 - **Hardware**: AWS g5.2xlarge (A10G) + 64GB RAM.
 - **Backends**: FAISS (IndexFlatL2) + Neo4j (Community 5.12).
-- **Models**: Grok-4.2 (API), Llama-3-70B (vLLM).
+- **Models**: Llama-3-70B (vLLM), Mistral-7B (Ollama).
 
 ## Results Table
 

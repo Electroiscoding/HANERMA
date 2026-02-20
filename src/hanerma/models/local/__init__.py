@@ -1,4 +1,0 @@
-
-"""
-Local model providers.
-"""

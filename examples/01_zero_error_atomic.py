@@ -8,7 +8,7 @@ def main():
     This example specifically triggers the Deep 2 Verification loop
     by attempting to inject a false fact.
     """
-    orch = HANERMAOrchestrator(model="grok-4.2")
+    orch = HANERMAOrchestrator(model="local-llama3")
     registry = PersonaRegistry()
     
     # 1. Register the System Verifier

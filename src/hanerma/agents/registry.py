@@ -1,7 +1,7 @@
 from typing import Dict, Type, Any
 from hanerma.agents.base_agent import BaseAgent
 # In a full build, this imports the native, hardened classes
-# from hanerma.agents.native_personas import GrokReasoner, SystemVerifier
+# from hanerma.agents.native_personas import DeepReasoner, SystemVerifier
 
 class PersonaRegistry:
     """

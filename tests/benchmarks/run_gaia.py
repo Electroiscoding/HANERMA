@@ -20,11 +20,11 @@ def run_benchmark():
     print("==================================================")
     
     dataset = load_gaia_dataset(level=3)
-    orchestrator = HANERMAOrchestrator(model="grok-4.2")
+    orchestrator = HANERMAOrchestrator(model="local-llama3")
     registry = PersonaRegistry()
     
     # Spawn the native zero-error persona
-    agent = registry.spawn_agent("native::grok_reasoner")
+    agent = registry.spawn_agent("native::deep_reasoner")
     orchestrator.register_agent(agent)
     
     results = {"correct": 0, "latencies": [], "tokens": []}

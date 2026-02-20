@@ -11,7 +11,7 @@ A builder persona is defined by a `JSON` blob.
   "system_prompt": "You are a pessimistic trader...",
   "tools": ["web_search", "binance_api"],
   "memory_type": "ephemeral",
-  "model": "grok-4.2"
+  "model": "local-llama3"
 }
 ```
 
