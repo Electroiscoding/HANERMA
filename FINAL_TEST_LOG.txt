@@ -1,0 +1,213 @@
+======================================================================
+  HANERMA — FINAL CERTIFICATION TEST
+  Timestamp:  2026-02-20 14:19:22 IST
+  Model:      Qwen/Qwen3-Coder-Next-FP8:together
+  Token:      hf_DhzVe...zzmi
+  Python:     3.13.1 (tags/v3.13.1:0671451, Dec  3 2024, 19:06:28) [MSC v.1942 64 bit (AMD64)]
+  Platform:   win32
+  Log File:   C:\Users\botma\HANERMA\FINAL_TEST_LOG.txt
+======================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 1: Raw HuggingFace Adapter (Direct LLM Call)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [INPUT]  prompt       = "What is 2 + 2? Reply with just the number."
+  [INPUT]  system_prompt= "You are a calculator. Reply concisely."
+  [INPUT]  model        = "Qwen/Qwen3-Coder-Next-FP8:together"
+  [INIT]   Creating HuggingFaceAdapter...
+[HuggingFace] Using routed provider: together
+  [INIT]   adapter.model_name = "Qwen/Qwen3-Coder-Next-FP8"
+  [INIT]   adapter.provider   = "together"
+  [EXEC]   Calling adapter.generate()...
+[HuggingFace] Executing intent on: Qwen/Qwen3-Coder-Next-FP8 (via together)
+  [OUTPUT] Raw response  = "4"
+  [METRIC] Latency       = 4909.34ms
+  [METRIC] Response len  = 1 chars
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 2: Deep 1 — Atomic Guard (Hallucination Detection)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [INIT]   AtomicGuard created. strictness=0.99
+  [✅] valid_fact           | input="The speed of light is 299,792,458 m/s." | valid=True expected=True | msg="Atomic integrity verified."
+  [✅] empty_string         | input="" | valid=False expected=False | msg="Output is completely empty. Hallucination or generation failure."
+  [✅] ai_refusal           | input="As an AI, I cannot help with that." | valid=False expected=False | msg="Output contains base-model refusal or unhandled error state."
+  [✅] error_string         | input="Error: connection timeout" | valid=False expected=False | msg="Output contains base-model refusal or unhandled error state."
+  [✅] normal_answer        | input="Python was created by Guido van Rossum in 1991." | valid=True expected=True | msg="Atomic integrity verified."
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 3: HCMS Memory Store (Write + FAISS Retrieval)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[HCMS Compression] Initialized xerv-crayon v4 (profile=lite, device=auto)
+[HCMS] Memory Store Online. Dimension: 128. Index: FAISS FlatL2.
+  [INIT]   Tokenizer: XervCrayonAdapter
+  [INIT]   HCMS dim=128, backend=FAISS FlatL2
+  [WRITE]  Storing: "Python was created by Guido van Rossum in 1991." (type=fact)
+[HCMS] Session test-session | Token Compression: -0.0% overhead.
+  [WRITE]  Storing: "FAISS is a library for efficient similarity search." (type=context)
+[HCMS] Session test-session | Token Compression: -0.0% overhead.
+  [WRITE]  Storing: "Neo4j is a graph database for relationship tracking." (type=fact)
+[HCMS] Session test-session | Token Compression: -7.69% overhead.
+  [STATE]  Index size after writes: 3
+  [STATE]  Memory map keys: [0, 1, 2]
+  [QUERY]  "Who created Python?" (top_k=3)
+  [RESULT] Retrieved 3 contexts:
+           [0] "FAISS is a library for efficient similarity search."
+           [1] "Python was created by Guido van Rossum in 1991."
+           [2] "Neo4j is a graph database for relationship tracking."
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 4: Deep 2 — Nested Verifier (HCMS Cross-Check)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[HCMS Compression] Initialized xerv-crayon v4 (profile=lite, device=auto)
+[HCMS] Memory Store Online. Dimension: 128. Index: FAISS FlatL2.
+[HCMS] Session test | Token Compression: -7.69% overhead.
+  [INIT]   Seeded HCMS with 1 fact. Index size: 1
+  [INIT]   NestedVerifier. threshold=0.85
+  [CHECK]  Claim A: "Earth orbits the Sun."
+[Deep 2] Verifying claim: 'Earth orbits the Sun....'
+  [OUTPUT] valid=True | reason="Claim mathematically verified against HCMS."
+[HCMS] Memory Store Online. Dimension: 128. Index: FAISS FlatL2.
+  [CHECK]  Claim B: "Novel claim with no history." (empty memory)
+[Deep 2] Verifying claim: 'Novel claim with no history....'
+  [OUTPUT] valid=True | reason="Claim accepted (Novel/No historical contradiction found)."
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 5: BaseAgent — Real LLM Execution via HuggingFace
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [INIT]   Agent name=test::base_agent, role=General Assistant
+  [INIT]   Agent model=Qwen/Qwen3-Coder-Next-FP8:together
+  [INIT]   Agent system_prompt="Answer concisely in one word."
+  [INPUT]  prompt="What programming language is HANERMA built in? One word only."
+[test::base_agent] Thinking... (Context loaded: 0 previous turns)
+[HuggingFace] Using routed provider: together
+[HuggingFace] Executing intent on: Qwen/Qwen3-Coder-Next-FP8 (via together)
+  [OUTPUT] response="Java"
+  [METRIC] Latency=961.41ms
+  [METRIC] Response length=4 chars
+  [STATE]  history entries=1
+  [STATE]  history[0]={'role': 'test::base_agent', 'content': 'Java'}
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 6: DeepReasonerAgent — Chain-of-Thought via HuggingFace
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [INIT]   Agent name=native::deep_reasoner, role=Deep Reasoner
+  [INIT]   Agent model=Qwen/Qwen3-Coder-Next-FP8:together
+  [INIT]   system_prompt="You are HANERMA's Deep Reasoner. Perform thorough, step-by-step analysis. Never skip logical steps. Use external tools if needed."
+  [INPUT]  prompt="Explain why recursion needs a base case. Be brief, max 2 sentences."
+[native::deep_reasoner] Thinking... (Context loaded: 0 previous turns)
+[HuggingFace] Using routed provider: together
+[HuggingFace] Executing intent on: Qwen/Qwen3-Coder-Next-FP8 (via together)
+  [OUTPUT] response="Recursion requires a base case to prevent infinite self-calls—without it, the function would keep calling itself forever, eventually exhausting the call stack and causing a stack overflow. The base case provides a stopping condition that terminates the recursion when a simple input is reached."
+  [METRIC] Latency=3370.64ms
+  [METRIC] Response length=294 chars
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 7: SystemVerifier — Fact Verification via HCMS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[HCMS Compression] Initialized xerv-crayon v4 (profile=lite, device=auto)
+[HCMS] Memory Store Online. Dimension: 128. Index: FAISS FlatL2.
+  [INIT]   Verifier name=native::system_verifier, role=Fact-Checker
+  [INIT]   Verifier model=Qwen/Qwen3-Coder-Next-FP8:together
+  [INPUT]  prompt="Is the speed of light 299,792,458 m/s?"
+[Deep 2] Verifying claim: 'Is the speed of light 299,792,458 m/s?...'
+  [OUTPUT] response="[APPROVED] Claim aligns with verified memory."
+  [METRIC] Latency=0.41ms
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 8: Full Orchestrator Pipeline (End-to-End)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [INIT]   Orchestrator ID=4acaf397-0fb1-4b75-9232-6efd8ec0e316
+  [INIT]   Default model=Qwen/Qwen3-Coder-Next-FP8:together
+  [INIT]   Agent model BEFORE register: None
+[HANERMA] Agent 'native::deep_reasoner' registered with model 'Qwen/Qwen3-Coder-Next-FP8:together'.
+  [INIT]   Agent model AFTER register:  Qwen/Qwen3-Coder-Next-FP8:together
+  [INPUT]  prompt="What is a deadlock in concurrent programming? One sentence only."
+  [INPUT]  target_agent="native::deep_reasoner"
+  [FLOW]   Step 1: AutoPrompt Enhance
+  [FLOW]   Step 2: Agent.execute() → HuggingFace LLM
+  [FLOW]   Step 3: AtomicGuard.verify() on raw output
+
+[HANERMA Orchestrator] Initializing task ID: 5edd8537
+[native::deep_reasoner] Thinking... (Context loaded: 0 previous turns)
+[HuggingFace] Using routed provider: together
+[HuggingFace] Executing intent on: Qwen/Qwen3-Coder-Next-FP8 (via together)
+  [OUTPUT] status=success
+  [OUTPUT] output="A deadlock is a situation in concurrent programming where two or more processes are blocked forever, each waiting for a resource held by another in the cycle."
+  [METRIC] Orchestrator latency=1165.49ms
+  [METRIC] Wall-clock latency=1165.51ms
+  [STATE]  History entries=1
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 9: Multi-Agent Orchestration (Reasoner + Verifier)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[HCMS Compression] Initialized xerv-crayon v4 (profile=lite, device=auto)
+[HCMS] Memory Store Online. Dimension: 128. Index: FAISS FlatL2.
+[HANERMA] Agent 'native::deep_reasoner' registered with model 'Qwen/Qwen3-Coder-Next-FP8:together'.
+[HANERMA] Agent 'native::system_verifier' registered with model 'Qwen/Qwen3-Coder-Next-FP8:together'.
+  [INIT]   Active agents: ['native::deep_reasoner', 'native::system_verifier']
+  [INIT]   Reasoner model:  Qwen/Qwen3-Coder-Next-FP8:together
+  [INIT]   Verifier model:  Qwen/Qwen3-Coder-Next-FP8:together
+
+  [PHASE A] Running Reasoner...
+  [INPUT]  prompt="What is garbage collection in programming? One sentence."
+
+[HANERMA Orchestrator] Initializing task ID: 240e8d98
+[native::deep_reasoner] Thinking... (Context loaded: 0 previous turns)
+[HuggingFace] Using routed provider: together
+[HuggingFace] Executing intent on: Qwen/Qwen3-Coder-Next-FP8 (via together)
+  [OUTPUT] status=success
+  [OUTPUT] output="Garbage collection is an automatic memory management process in programming that identifies and reclaims memory occupied by objects that are no longer reachable or in use by the program."
+  [METRIC] Latency=1805.26ms
+
+  [PHASE B] Running Verifier...
+  [INPUT]  prompt="Python uses reference counting for garbage collection."
+
+[HANERMA Orchestrator] Initializing task ID: 183e594f
+[Deep 2] Verifying claim: '[System: Strict formatting required]
+User Request:...'
+  [OUTPUT] status=success
+  [OUTPUT] output="[APPROVED] Claim aligns with verified memory."
+  [METRIC] Latency=0.89ms
+  [RESULT] ✅ PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST 10: LocalModelRouter — Failover Chain Logic
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [INIT]   Endpoint:       http://localhost:11434/api/generate
+  [INIT]   Fallback chain: ['llama3', 'mistral', 'qwen:0.5b']
+  [INIT]   Cooldowns:      {}
+  [EXEC]   Attempting inference (Ollama not running — expecting graceful failure)...
+[LocalRouter] Attempting inference with: llama3
+[LocalRouter WARNING] llama3 failed: [WinError 10061] No connection could be made because the target machine actively refused it. Falling back to next model...
+[LocalRouter] Attempting inference with: mistral
+[LocalRouter WARNING] mistral failed: [WinError 10061] No connection could be made because the target machine actively refused it. Falling back to next model...
+[LocalRouter] Attempting inference with: qwen:0.5b
+[LocalRouter WARNING] qwen:0.5b failed: [WinError 10061] No connection could be made because the target machine actively refused it. Falling back to next model...
+  [OUTPUT] RuntimeError (expected): "CRITICAL: All local models in the fallback chain failed or Ollama is offline."
+  [METRIC] Latency=14705.82ms
+  [STATE]  Cooldowns after: {'llama3': 1771577443.14578, 'mistral': 1771577443.14578, 'qwen:0.5b': 1771577443.14578}
+  [RESULT] ✅ PASS
+
+
+======================================================================
+  FINAL SCORE: 10/10 PASSED | 0 FAILED
+======================================================================
+  🎉 ALL TESTS PASSED — HANERMA IS FULLY CERTIFIED

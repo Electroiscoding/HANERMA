@@ -1,9 +1,8 @@
-
 """
 LLM Agnostic Adapters.
 """
-from .router import ModelRouter
-from .cloud.openai_adapter import OpenAIAdapter
-from .local.vllm_adapter import VLLMAdapter
+from .router import LocalModelRouter
+from .cloud_llm import OpenRouterAdapter, HuggingFaceAdapter
+from .local_llm import LocalLLMAdapter
 
-__all__ = ["ModelRouter", "OpenAIAdapter", "VLLMAdapter"]
+__all__ = ["LocalModelRouter", "OpenRouterAdapter", "HuggingFaceAdapter", "LocalLLMAdapter"]

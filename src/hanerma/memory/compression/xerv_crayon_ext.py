@@ -1,34 +1,37 @@
-import numpy as np
 from typing import List
 from hanerma.memory.compression.base_tokenizer import BaseHyperTokenizer
 
-# In a real environment: from xerv_crayon import CrayonTokenizerV2
 
 class XervCrayonAdapter(BaseHyperTokenizer):
     """
-    Drop-in adapter for the XERV CRAYON V2.0 tokenizer.
-    Optimized for hyper-competitive benchmarking and minimal token overhead.
+    Production adapter for the XERV CRAYON tokenizer (xerv-crayon on PyPI).
+    Uses the real CrayonVocab API for tokenization, embedding, and token counting.
     """
-    def __init__(self, vocab_path: str = "models/xerv_vocab.json"):
-        # Simulated initialization of the Crayon engine
-        self.engine_name = "XERV-CRAYON-V2.0"
-        print(f"[HCMS Compression] Initialized {self.engine_name} adapter.")
+
+    def __init__(self, profile: str = "lite", device: str = "auto"):
+        from crayon import CrayonVocab
+
+        self.vocab = CrayonVocab(device=device)
+        self.vocab.load_profile(profile)
+        self.profile = profile
+        self._vocab_size = self.vocab.vocab_size
+        print(f"[XERV-CRAYON] Initialized (profile={profile}, device={device}, vocab_size={self._vocab_size})")
 
     def encode_and_compress(self, text: str) -> List[int]:
-        """
-        Executes the aggressive token reduction logic before memory indexing.
-        """
-        # Simulated Crayon encoding (e.g., merging common atomic phrases into single O(1) IDs)
-        simulated_tokens = [hash(word) % 10000 for word in text.split()]
-        return simulated_tokens
+        return self.vocab.tokenize(text)
 
     def decode(self, tokens: List[int]) -> str:
-        return "Decoded string from Crayon engine."
+        return self.vocab.decode(tokens)
 
     def get_compression_ratio(self, original_text: str, compressed_tokens: List[int]) -> float:
-        """Validates the framework's -60% token efficiency claim."""
-        standard_length = len(original_text) / 4.0 # rough estimate of standard tiktoken
+        # Rough estimate: standard tokenizers average ~4 chars per token
+        standard_length = len(original_text) / 4.0
         crayon_length = len(compressed_tokens)
-        
+        if standard_length == 0:
+            return 0.0
         reduction = (1 - (crayon_length / standard_length)) * 100
         return round(max(0.0, min(reduction, 99.9)), 2)
+
+    @property
+    def vocab_size(self) -> int:
+        return self._vocab_size

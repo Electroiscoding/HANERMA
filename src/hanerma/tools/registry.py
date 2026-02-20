@@ -1,6 +1,4 @@
-from typing import Dict, Type, Any, Callable
-from hanerma.tools.builtin.web_search import WebSearchTool
-from hanerma.agents.swarm_protocol import SwarmHandoffTool
+from typing import Dict, Type, Any, Callable, List
 
 class ToolRegistry:
     """
@@ -14,6 +12,8 @@ class ToolRegistry:
         self._register_defaults()
 
     def _register_defaults(self):
+        # Local import to avoid circular dependency
+        from hanerma.tools.builtin.web_search import WebSearchTool
         self.register_tool("web_search", WebSearchTool())
         # Other tools (sandbox, handoff) are injected dynamically during agent spawn
         print(f"[Tool Registry] Default toolset loaded: {list(self.tools.keys())}")

@@ -22,7 +22,8 @@ dependencies = [
     "httpx>=0.24.1",          # For local LLM adapter
     "openai>=1.0.0",          # OpenRouter + HuggingFace adapters
     "python-dotenv>=1.0.0",   # Secure credential loading
-    "numpy>=1.24.0"
+    "numpy>=1.24.0",
+    "xerv-crayon>=4.0.0"      # Tokenization + embeddings for HCMS
 ]
 
 [project.optional-dependencies]
@@ -31,9 +32,7 @@ dev = [
     "black>=23.7.0",
     "mkdocs-material>=9.1.21"
 ]
-xerv = [
-    "xerv-crayon>=2.0.0"      # Optional drop-in for competitive tokenization
-]
+
 
 [project.urls]
 "Homepage" = "https://hanerma.ai"

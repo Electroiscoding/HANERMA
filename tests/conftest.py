@@ -17,7 +17,7 @@ def hcms_store(mock_tokenizer):
 @pytest.fixture
 def orchestrator(hcms_store):
     """Returns a fresh orchestrator instance for testing swarm handoffs."""
-    orch = HANERMAOrchestrator(model="local-llama", tokenizer_adapter=mock_tokenizer)
+    orch = HANERMAOrchestrator(model="local-llama3", tokenizer_adapter=mock_tokenizer)
     # Inject the mocked memory
     orch.state_manager["shared_memory"] = hcms_store
     return orch

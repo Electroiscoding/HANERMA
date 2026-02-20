@@ -7,13 +7,13 @@ class SystemVerifier(BaseAgent):
     It does not generate code; it aggressively attacks and verifies 
     the outputs of other agents against the HCMS.
     """
-    def __init__(self, name: str = "native::system_verifier", memory_store=None):
+    def __init__(self, name: str = "native::system_verifier", memory_store=None, model: str = None):
         system_prompt = (
             "You are the HANERMA System Verifier. Your sole purpose is to cross-check "
             "claims made by other agents. If an agent hallucinated, you must return "
             "a strict correction payload. Do not be polite. Be mathematically precise."
         )
-        super().__init__(name=name, role="Fact-Checker", system_prompt=system_prompt)
+        super().__init__(name=name, role="Fact-Checker", system_prompt=system_prompt, model=model)
         self.verifier_logic = NestedVerifier(memory_store=memory_store)
 
     def execute(self, prompt: str, global_state: dict) -> str:
