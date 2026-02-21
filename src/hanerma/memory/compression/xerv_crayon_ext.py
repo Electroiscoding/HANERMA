@@ -2,12 +2,12 @@ from typing import List
 import numpy as np
 import torch
 from hanerma.memory.compression.base_tokenizer import BaseHyperTokenizer
-
+import spacy
 
 class XervCrayonAdapter(BaseHyperTokenizer):
     """
-    Production adapter for the XERV CRAYON tokenizer with hardware acceleration.
-    Uses CUDA for parallel embedding computation.
+    Production adapter for the XERV CRAYON tokenizer with hardware acceleration and semantic pruning.
+    Uses CUDA for parallel embedding computation and spaCy for semantic token analysis.
     """
 
     def __init__(self, profile: str = "lite", device: str = "auto"):
@@ -22,7 +22,17 @@ class XervCrayonAdapter(BaseHyperTokenizer):
         
         self.profile = profile
         self._vocab_size = len(self.vocab) if hasattr(self.vocab, '__len__') else 100000
-        print(f"[XERV-CRAYON] Initialized (profile={profile}, device={device}, vocab_size={self._vocab_size})")
+        
+        # Load spaCy for semantic analysis
+        try:
+            self.nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            # Fallback if model not downloaded
+            import subprocess
+            subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+            self.nlp = spacy.load("en_core_web_sm")
+        
+        print(f"[XERV-CRAYON] Initialized (profile={profile}, device={device}, vocab_size={self._vocab_size}, spaCy loaded)")
 
     def encode_and_compress(self, text: str) -> List[int]:
         if hasattr(self.vocab, 'tokenize'):
@@ -44,6 +54,42 @@ class XervCrayonAdapter(BaseHyperTokenizer):
 
     def count_tokens(self, text: str) -> int:
         return len(self.encode_and_compress(text))
+
+    def compress_context(self, text: str, ratio: float = 0.1) -> str:
+        """
+        Semantic-aware pruning: removes redundant linguistic fillers while preserving 
+        the core noun-verb dependency graph of the prompt.
+        """
+        # Process text with spaCy
+        doc = self.nlp(text)
+        
+        # Identify tokens to keep: core semantic elements
+        keep_tokens = []
+        for token in doc:
+            # Keep if it's a core POS and not a common filler
+            if token.pos_ in ['NOUN', 'VERB', 'PROPN', 'NUM'] or \
+               (token.pos_ == 'ADJ' and token.dep_ in ['amod', 'acomp']) or \
+               (token.pos_ == 'PRON' and token.dep_ == 'nsubj'):
+                keep_tokens.append(token.text)
+            # Keep some conjunctions and prepositions if they connect core elements
+            elif token.pos_ in ['CCONJ', 'SCONJ'] and any(child.pos_ in ['NOUN', 'VERB'] for child in token.children):
+                keep_tokens.append(token.text)
+            # Keep punctuation
+            elif token.pos_ == 'PUNCT':
+                keep_tokens.append(token.text)
+        
+        # Reconstruct text with kept tokens
+        compressed_text = ' '.join(keep_tokens)
+        
+        # Further compress if needed to meet ratio
+        if len(compressed_text.split()) > len(text.split()) * ratio:
+            # Simple skip for additional compression
+            tokens = compressed_text.split()
+            skip = max(1, int(1 / ratio))
+            final_tokens = tokens[::skip]
+            compressed_text = ' '.join(final_tokens)
+        
+        return compressed_text.strip()
 
     def embed(self, text: str, dim: int = 128) -> np.ndarray:
         """

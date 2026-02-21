@@ -648,14 +648,56 @@ async def resume_graph():
     orchestrator.pause_event.set()
     return {"status": "resumed"}
 
+@app.post("/api/composer/export")
+async def export_composer(request: Request):
+    """Compile graph JSON into executable HANERMA script."""
+    graph = await request.json()
+    
+    # Extract nodes and links from graph
+    nodes = graph.get("nodes", [])
+    links = graph.get("links", [])
+    
+    # Generate script based on nodes
+    script_lines = [
+        "from hanerma.orchestrator.nlp_compiler import compile_and_spawn",
+        "",
+        "# Compiled from Visual Architect",
+    ]
+    
+    # Map node types to actions
+    agent_nodes = [n for n in nodes if n.get("type") == "agent"]
+    if agent_nodes:
+        agent_prompt = "Create agents: " + ", ".join([n["label"] for n in agent_nodes])
+        script_lines.append(f"app = compile_and_spawn(\"{agent_prompt}\")")
+        script_lines.append("result = app.run()")
+        script_lines.append("print(result)")
+    
+    script = "\n".join(script_lines)
+    return {"script": script, "filename": "compiled_dag.py"}
+
 @app.post("/api/graph/edit_state")
 async def edit_state(request: Request):
+    """Allow manual variable injection during paused execution."""
     data = await request.json()
     agent_name = data.get("agent_name")
-    new_memory = data.get("new_memory")
+    variable_name = data.get("variable_name")
+    new_value = data.get("new_value")
+    
+    # Find and update agent's state
     if agent_name in orchestrator.active_agents:
-        orchestrator.active_agents[agent_name].state_manager = new_memory  # Update agent's memory
-    return {"status": "updated"}
+        agent = orchestrator.active_agents[agent_name]
+        # Assume agent has a state dict
+        if not hasattr(agent, 'custom_state'):
+            agent.custom_state = {}
+        agent.custom_state[variable_name] = new_value
+        
+        # Resume if paused
+        if hasattr(orchestrator, 'pause_event'):
+            orchestrator.pause_event.set()
+        
+        return {"status": "updated", "agent": agent_name, "variable": variable_name}
+    
+    return {"error": "Agent not found"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

@@ -42,3 +42,6 @@ pyaudio>=0.2.13
 
 # Distributed Networking
 grpcio>=1.60.0
+
+# Natural Language Processing
+spacy>=3.7.0
