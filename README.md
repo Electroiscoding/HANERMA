@@ -128,8 +128,25 @@ cd hanerma
 pip install -e .
 
 # 2. Configure Credentials (.env)
-HF_TOKEN="your_huggingface_token"
-HANERMA_MODEL="Qwen/Qwen3-Coder-Next-FP8:together"
+HANERMA_MODEL="hf/Qwen/Qwen3-Coder-Next-FP8:together" # Example default
+
+# 3. Model Provider Configuration (Multi-Tenant)
+HANERMA supports three primary provider tiers. Use the prefixes below to route requests:
+
+### ◈ Tier 1: Hugging Face (Cloud Hub)
+*   **Prefix**: `hf/` or `huggingface/` (or any string containing `Qwen/` or `:`)
+*   **Requirement**: `HF_TOKEN` in `.env`
+*   **Example**: `hf/meta-llama/Llama-3.1-405B-Instruct`
+
+### ◈ Tier 2: OpenRouter (Cloud Gateway)
+*   **Prefix**: `openrouter/` or `gpt-` or `claude-`
+*   **Requirement**: `OPENROUTER_API_KEY` in `.env`
+*   **Example**: `openrouter/anthropic/claude-3.5-sonnet`
+
+### ◈ Tier 3: Local Reasoning (Edge)
+*   **Prefix**: `local-` (or no prefix)
+*   **Requirement**: `OLLAMA_ENDPOINT` (Default: `http://localhost:11434/v1`)
+*   **Example**: `local-llama3.1`
 ```
 
 ## 📜 License
