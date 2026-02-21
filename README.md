@@ -372,7 +372,6 @@ def calculate_fibonacci(n: int) -> str:
 #### HCMSManager
 Hierarchical memory with FAISS vector search.
 
-
 ### Layer 2: Mathematical Grounding
 - **Z3 Theorem Prover**: Proves contradictions in factual claims
 - **Fact Extraction**: Parses natural language into verifiable assertions
