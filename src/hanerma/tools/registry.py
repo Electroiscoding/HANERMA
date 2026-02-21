@@ -12,11 +12,19 @@ class ToolRegistry:
         self._register_defaults()
 
     def _register_defaults(self):
-        # Local import to avoid circular dependency
-        from hanerma.tools.builtin.web_search import WebSearchTool
-        self.register_tool("web_search", WebSearchTool())
-        # Other tools (sandbox, handoff) are injected dynamically during agent spawn
-        print(f"[Tool Registry] Default toolset loaded: {list(self.tools.keys())}")
+        # Clean import from the consolidated builtin set
+        try:
+            from hanerma.tools.builtin.basic_tools import web_search, calculator, get_system_time, delegate_task, internal_search, execute_sandbox
+            self.register_tool("web_search", web_search)
+            self.register_tool("calculator", calculator)
+            self.register_tool("get_system_time", get_system_time)
+            self.register_tool("delegate_task", delegate_task)
+            self.register_tool("internal_search", internal_search)
+            self.register_tool("execute_sandbox", execute_sandbox)
+        except ImportError as e:
+            print(f"[Tool Registry] Warning: Could not load default tools: {e}")
+        
+        print(f"[Tool Registry] Apex Toolset Active: {list(self.tools.keys())}")
 
     def register_tool(self, name: str, tool_instance: Any):
         self.tools[name] = tool_instance

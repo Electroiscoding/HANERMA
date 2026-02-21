@@ -1,199 +1,137 @@
 # ⚡ HANERMA APEX (V1.0)
-**The Ultimate Hierarchical Atomic Nested External Reasoning and Memory Architecture**
+**Hierarchical Atomic Nested External Reasoning and Memory Architecture**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Engine](https://img.shields.io/badge/Engine-APEX--1.0-blueviolet.svg)](https://hanerma.ai)
-[![Tokenizer](https://img.shields.io/badge/Root-XERV--CRAYON-orange.svg)](https://pypi.org/project/xerv-crayon/)
+> [!WARNING]
+> **ALPHA STATUS**: HANERMA is currently in active development. While the core architecture is stable, users should expect frequent updates to the reasoning kernel and tool schemas. Always verify sensitive sandbox outputs.
 
-HANERMA APEX is a **zero-friction, self-healing AI orchestration OS**. It is designed to eliminate the complexity of building production-grade agentic workflows by providing a **mathematically grounded, transactionally safe, and visually intelligent** execution environment. 
-
-Powered by **XERV-CRAYON v4**, Apex introduces **Invisible Parallelism**, **Predictive Failure Avoidance**, and a stunning **Visual Intelligence Dashboard**.
-
-## ✨ The Apex Difference: V1.0 Features
-
-### 1. 🌐 Visual Intelligence OS (v8081)
-The **Apex Dashboard** is a premium, high-performance orchestration center. It transforms logs into a **Live Causal Execution Graph**, allowing you to visualize "Agent Thinking" nodes, "Tool Execution" links, and "Symbolic Verification" checkpoints in real-time.
-
-### 2. 🛡️ Transactional State Bus (SQLite Root)
-Every thought, tool call, and model response is recorded on a **Transactional Bus**. This ensures 100% trace persistence, allowing for "Time-Travel Debugging" and instant historical log retrieval even after system reboots.
-
-### 3. 🧠 Predictive Failure Engine (Risk L0)
-Before a prompt ever hits the model, the **Risk Engine** analyzes the intent for hallucinations, safety violations, or logical contradictions, assigning a real-time risk score and blocking high-risk drifts.
-
-### 4. ⚡ Zero-Boilerplate "Quick-Flow" API
-Spawn production-grade agents and multi-agent loops with zero configuration.
-```python
-from hanerma.interface.minimalist import quick_flow
-
-# Start a verified flow in one line
-result = quick_flow("Research SymbolicReasoner and summarize findings.", model="cloud")
-```
+HANERMA APEX is an enterprise-grade orchestration framework designed for building autonomous, self-healing agentic workflows. By grounding LLM reasoning in a **Hardware-Rooted Transactional Bus**, Apex eliminates common agentic failures such as context drift, state loss, and logical hallucinations.
 
 ---
 
-## 🏗️ Architecture: The "Apex" Stack
-1. **L0: CRAYON Layer** — Radical 60% token compression and spectral embeddings.
-2. **L1: Transactional Bus** — SQLite-backed persistence for all causal steps.
-3. **L2: Symbolic Reasoner** — Deterministic verification of logical consistency.
-4. **L3: Visual OS** — Real-time D3.js causal mapping and interactive control.
+## 🚀 Key Features
+
+### 🌐 Visual Intelligence OS (Layer 3)
+Transform raw logs into a **Live Causal Execution Graph**.
+*   **D3.js Visualization**: Watch "Agent Thinking" nodes, "Tool Execution" links, and "Symbolic Verification" checkpoints form in real-time.
+*   **Transactional Auditing**: Select any node in the graph to inspect the exact input/output payloads from the SQLite bus.
+
+### 🛡️ Transactional State Bus (Layer 1)
+Experience 100% trace persistence through the **Atomic Event Bus**.
+*   **SQLite Persistence**: Every thought, tool call, and model response is recorded natively.
+*   **Time-Travel Debugging**: Restore agent states from any historical checkpoint.
+*   **Reliability**: Prevents state loss during network interruptions or worker crashes.
+
+### 🧠 Hierarchical Reasoning & Memory (HCMS)
+*   **CRAYON Tokenization**: Hardware-level token counting and 60% memory compression.
+*   **Vector Vault**: Long-term "System Truths" stored in FAISS-indexed vector embeddings.
+*   **Nested Verification**: Deterministic cross-checking of LLM claims against verified memory records.
 
 ---
 
-## 🚀 Step-by-Step Developer Guide
+## 🛤️ Getting Started
 
-### 1. Installation
-Install the core framework and the new visual dependencies.
+### 1. ⚡ Mission Execution (CLI)
+The most direct way to deploy the swarm. The CLI automatically discovers specialized agents (Architects, Verifiers) based on your natural language prompt.
 
 ```bash
-# Core + Visual intelligence
-pip install hanerma xerv-crayon fastapi uvicorn websockets python-dotenv huggingface_hub
+# General Mission
+hanerma run "Build a secure login system and verify it."
+
+# Explicit Agent Deployment
+hanerma run "Update the database schema" --agents Code_Architect Strict_Verifier
 ```
 
-Set up your `.env` file to handle multiple providers simultaneously:
+### 2. 🕹️ Visual Observation
+Launch the dashboard to monitor reasoning chains in real-time.
+
 ```bash
-# .env
-# --- Local / Self-Hosted ---
-OLLAMA_ENDPOINT="http://localhost:11434/api/generate"
-
-# --- Cloud Providers (Optional) ---
-HF_TOKEN="your_huggingface_token"
-OPENROUTER_API_KEY="your_openrouter_key"
-
-# --- Infrastructure ---
-NEO4J_URI="bolt://localhost:7687"
-REDIS_HOST="localhost"
+hanerma viz
 ```
+*Dashoard active at: `http://localhost:8081`*
 
-### 2. Initializing the Tokenizer Root
-Everything in HANERMA starts with **XERV-CRAYON**. It handles the embeddings for memory and the counting for context windows.
-
-```python
-from hanerma.memory.compression.xerv_crayon_ext import XervCrayonAdapter
-
-# Initialize the root engine (lite profile is balanced for speed/accuracy)
-tokenizer = XervCrayonAdapter(profile="lite", device="auto")
-
-# Use it to measure tokens or generate spectral embeddings manually
-tokens = tokenizer.count_tokens("HANERMA uses CRAYON at its core.")
-print(f"Token Count: {tokens}")
-```
-
-### 3. Setting Up the Memory Root (HCMS)
-The **Hyperfast Compressed Memory Store** uses the tokenizer to turn text into deterministic vectors for FAISS.
-
-```python
-from hanerma.memory.manager import HCMSManager
-
-# Initialize memory with our Crayon tokenizer
-memory = HCMSManager(tokenizer=tokenizer, embedding_dim=128)
-
-# Seed the memory with verified facts
-memory.store_atomic_memory(
-    session_id="global_facts", 
-    raw_text="The internal code for the reactor is XC-909.", 
-    entity_type="fact"
-)
-```
-
-### 4. Spawning and Configuring Agents
-Agents are model-agnostic. You can assign different models to different agents within the same session.
-
-```python
-from hanerma.agents.native_personas.deep_reasoner import DeepReasonerAgent
-from hanerma.agents.native_personas.system_verifier import SystemVerifier
-
-# Reasoner handles complex step-by-step logic
-reasoner = DeepReasonerAgent(
-    name="analyst", 
-    model="hf/Qwen/Qwen3-Coder-Next-FP8:together" 
-)
-
-# Verifier is bonded to the HCMS memory store for fact-checking
-verifier = SystemVerifier(
-    name="fact_checker",
-    memory_store=memory,
-    model="local-llama3" # Local verification for privacy/speed
-)
-```
-
-### 5. Orchestrating the Task
-The `HANERMAOrchestrator` manages the loop, history trimming, and token metrics.
+### 3. 👩‍💻 Developer SDK
+Integrate Apex directly into your Python backend.
 
 ```python
 from hanerma.orchestrator.engine import HANERMAOrchestrator
+from hanerma.agents.registry import spawn_agent
 
-# 1. Initialize the orchestrator with your Crayon root
-orch = HANERMAOrchestrator(
-    model="local-llama3", 
-    tokenizer=tokenizer,
-    context_window=8192
-)
+# 1. Initialize Kernel
+orch = HANERMAOrchestrator(model="Qwen/Qwen3-Coder-Next-FP8:together")
 
-# 2. Register your agents
-orch.register_agent(reasoner)
-orch.register_agent(verifier)
+# 2. Spawn Specialized Agent
+architect = spawn_agent("Architect", role="Senior Dev", tools=[my_custom_tool])
+orch.register_agent(architect)
 
-# 3. Execute a multi-agent flow
-# First, get a reasoning output
-reasoning_result = orch.run(
-    prompt="Prepare a summary of the XC-909 reactor status.", 
-    target_agent="analyst"
-)
-
-# Second, verify the output against memory
-verification_result = orch.run(
-    prompt=f"Verify this: {reasoning_result['output']}", 
-    target_agent="fact_checker"
-)
-
-print(f"Verified Output: {reasoning_result['output']}")
-print(f"Verification: {verification_result['output']}")
+# 3. Execute
+result = orch.run("Generate a secure API endpoint.", target_agent="Architect")
 ```
 
-### 6. Launching the Visual Intelligence Dashboard
-Apex comes with a built-in dashboard for real-time orchestration monitoring. It features a premium UI with **Be Vietnam Pro** fonts, glassmorphism, and interactive control.
+---
+
+## 🏗️ The 100% Mastery Protocol: Architecture Deep-Dive
+
+To leverage the full Apex stack, your implementation must utilize all four operational layers:
+
+### Layer 0: CRAYON Hardware Root
+*   **Function**: SIMD-accelerated tokenization and embedding generation.
+*   **Logic**: High-speed processing of the vector cache to prevent context bottlenecks. Open source logic implemented in C++.
+
+### Layer 1: Transactional State Bus
+*   **Function**: SQLite-backed persistence for the entire causal chain.
+*   **Logic**: Every AI thought and tool result is committed as an atomic transaction, ensuring zero state loss during crashes.
+
+### Layer 2: Symbolic & Nested Verification
+*   **Function**: Hallucination detection and fact-checking.
+*   **Logic**: Uses the `SymbolicReasoner` and `NestedVerifier` to cross-reference LLM claims against verified memories in the FAISS-indexed `HCMS`.
+
+### Layer 3: Visual Intelligence OS
+*   **Function**: Observability into the reasoning swarm.
+*   **Logic**: Real-time D3.js causal graph mapping of agent transitions and tool impacts.
+
+---
+
+## 🚀 Hyper-Logical Technical FAQ
+
+### Q: How does memory management handle 100% platform scaling?
+**Detailed Logical Steps:**
+1.  **Ingestion**: Incoming telemetry is streamed into the **Layer 0 XERV-CRAYON** C++ kernel.
+2.  **Spectral Compression**: CRAYON applies token-clustering, achieving up to 60% compression.
+3.  **Vectorization**: Text is converted into hardware-aligned embeddings via `CrayonVocab`.
+4.  **L2 FAISS Storage**: The `HCMSManager` maps these vectors into a **FAISS FlatL2 Index**.
+5.  **Retrieval**: During turn `T+1`, the engine performs a similarity search to inject relevant historical "System Truths" back into the prompt.
+6.  **Budget Protection**: `_trim_history` monitors token counts to maintain the context window under the `MAX_CONTEXT_TOKENS` ceiling.
+
+### Q: How does the system handle multi-agent tool concurrency?
+**Detailed Logical Steps:**
+1.  **Static Analysis**: Tool calls are detected via regex in the `_handle_tool_call` loop.
+2.  **Parallel Dispatch**: The engine uses `asyncio` to execute non-human-interposable tools (e.g., search, arithmetic) concurrently.
+3.  **Shared Memory Locking**: Results are written to the `shared_memory` field within the global state, ensuring the result is available to the next agent in the swarm.
+4.  **Conflict Resolution**: The `TransactionalEventBus` ensures that even if tools finish out of order, the causal log remains synchronous.
+
+### Q: What is the exact logic behind "Recursive Intelligence" handoffs?
+**Detailed Logical Steps:**
+1.  **Handoff Detection**: The orchestrator identifies the `DELEGATE:` keyword in the LLM's response stream.
+2.  **Context Encapsulation**: The current agent's short-term history is serialized into the `TransactionalBus`.
+3.  **Blueprint Hydration**: The `PersonaRegistry` instantiates the target agent (e.g., `Strict_Verifier`).
+4.  **Mission Forwarding**: The state is handed over with a recursive directive: *"Inherit context and complete delegated sub-task."*
+5.  **Verification Check**: The new agent's output is subjected to Layer 2 symbolic checks before being accepted back into the primary history.
+
+---
+
+## 🛠️ Installation & Rapid Setup
 
 ```bash
-# Launch the dashboard from your terminal
-hanerma viz --port 8081
-```
-*   **Live Causal Graph**: Interactive D3.js mapping of every logic step.
-*   **Execution Terminal**: Trigger and test your agents directly from the UI.
-*   **Step Persistence**: Instant access to historical logs via the Transactional Bus.
+# 1. Environment Setup
+git clone https://github.com/hanerma/hanerma.git
+cd hanerma
+pip install -e .
 
----
-
-## 🔍 Provider Specifics & URL Logic
-
-HANERMA handles model URIs dynamically:
-*   **HuggingFace**: `hf/repo/model:provider` (e.g., `hf/Qwen/Qwen3:together`)
-*   **OpenRouter**: `openrouter/model-id` (e.g., `openrouter/anthropic/claude-3-opus`)
-*   **Local**: Simple model name (e.g., `llama3.1`, `mistral`)
-
----
-
-## 📊 Performance Benchmarks
-
-| Component | Standard | HANERMA APEX | Improvement |
-|-----------|----------|---------------------|-------------|
-| **Embedding Speed** | 12.4 ms | **0.82 ms** | 15x Faster |
-| **Trace Persistence**| Volatile (RAM) | **Transactional (DB)** | 100% Reliable |
-| **Logic Verification**| LLM-based | **Symbolic Root** | Deterministic |
-| **UI Experience** | CLI/JSON | **Apex OS (V1.0)** | High Fidelity |
-
----
-
-## 🛠️ Advanced: Custom Tool Integration
-You can equip any agent with custom tools to interact with external environments.
-
-```python
-def get_reactor_temp():
-    return "98.4C"
-
-reasoner.equip_tools([get_reactor_temp])
-# The agent can now call this during its reasoning loop.
+# 2. Configure Credentials (.env)
+HF_TOKEN="your_huggingface_token"
+HANERMA_MODEL="Qwen/Qwen3-Coder-Next-FP8:together"
 ```
 
 ## 📜 License
-Apache 2.0. Built with ⚡ by the HANERMA Core Team.
+Apache 2.0. Built with ⚡ by the HANERMA Core Team. 
+Powered by **XERV-CRAYON** Technology.

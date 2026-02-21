@@ -21,6 +21,13 @@ class NativeCodeSandbox:
         Executes raw Python code. Captures all output and evaluates the 
         final expression if one exists (REPL behavior).
         """
+        # --- HARDENING: Strip Markdown Blocks ---
+        if "```" in code:
+            import re
+            match = re.search(r"```(?:python)?\n?(.*?)```", code, re.DOTALL)
+            if match:
+                code = match.group(1).strip()
+
         # Capture both stdout and stderr
         stdout_capture = io.StringIO()
         stderr_capture = io.StringIO()

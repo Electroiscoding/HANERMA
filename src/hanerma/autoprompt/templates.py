@@ -24,3 +24,8 @@ Output Format (JSON Only):
 Do not generate code unless you have reasoned through the edge cases.
 Do not state facts unless you have verified them against the HCMS context.
 """
+
+PROMPT_TEMPLATES = {
+    "atomic": PromptTemplates.ATOMIC_REASONER,
+    "system": PromptTemplates.FULL_SYSTEM_PROMPT
+}

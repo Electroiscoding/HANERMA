@@ -1,5 +1,5 @@
 from hanerma.agents.base_agent import BaseAgent
-from hanerma.tools.sandbox import SecureCodeSandbox
+from hanerma.tools.code_sandbox import NativeCodeSandbox
 
 class CodeArchitectAgent(BaseAgent):
     """
@@ -13,11 +13,11 @@ class CodeArchitectAgent(BaseAgent):
             "Never execute without first validating security constraints."
         )
         super().__init__(name=name, role="Code Generator", system_prompt=system_prompt)
-        self.sandbox = SecureCodeSandbox()
+        self.sandbox = NativeCodeSandbox()
 
     def write_and_test(self, global_state: dict, task_description: str) -> str:
         """
-        Generates code, runs it in an ephemeral Docker container, 
+        Generates code, runs it in an ephemeral sandbox, 
         and returns the result only if it passes all tests.
         """
         # Simulated generation phase
@@ -26,9 +26,9 @@ class CodeArchitectAgent(BaseAgent):
         # Simulated code execution
         code_snippet = "print('Hello from the secure sandbox!')"
         
-        result = self.sandbox.execute_python(code_snippet)
+        output = self.sandbox.execute_code(code_snippet)
         
-        if result["status"] == "error":
-            return f"Code Generation Failed: {result['output']}"
+        if "[Runtime Error]" in output:
+            return f"Code Generation Failed: {output}"
             
-        return f"Code Validated.\nOutput: {result['output']}"
+        return f"Code Validated.\nOutput: {output}"

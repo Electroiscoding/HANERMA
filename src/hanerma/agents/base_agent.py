@@ -18,7 +18,7 @@ class BaseAgent:
         self.tools.extend(tools)
         print(f"[{self.name}] Equipped {len(tools)} tools.")
 
-    def execute(self, prompt: str, global_state: Dict[str, Any]) -> str:
+    async def execute(self, prompt: str, global_state: Dict[str, Any]) -> str:
         """
         Executes the agent's logic using the configured LLM backend.
         Now injects equipped tool definitions into the system context.
@@ -26,21 +26,20 @@ class BaseAgent:
         print(f"[{self.name}] Thinking... (Context loaded: {len(global_state.get('history', []))} previous turns)")
         
         # 1. Dynamic Tool Injection
-        # We transform the Python functions in self.tools into a readable manifest for the LLM
         tool_manifest = ""
         if self.tools:
             tool_manifest = "\n\n[AVAILABLE TOOLS]\n"
             for tool in self.tools:
+                if tool is None: continue
                 doc = tool.__doc__ or "No description provided."
                 tool_manifest += f"- {tool.__name__}: {doc}\n"
-            tool_manifest += "\nTo use a tool, output: TOOL_CALL: tool_name(args)"
+            tool_manifest += "\nTo use a tool, output: TOOL_CALL: tool_name(key='val')"
 
         effective_system_prompt = self.system_prompt + tool_manifest
 
         # 2. Resolve Adapter based on model string
         model_id = self.model or "local-llama3"
-        llm_backend = None
-
+        
         try:
             if "gpt-" in model_id or "claude-" in model_id or "openrouter/" in model_id:
                 from hanerma.models.cloud_llm import OpenRouterAdapter
@@ -54,7 +53,8 @@ class BaseAgent:
                 from hanerma.models.local_llm import LocalLLMAdapter
                 llm_backend = LocalLLMAdapter(model_name=model_id)
 
-            # 3. Generate Real Intelligence
+            # 3. Generate Real Intelligence (Sync call within async method)
+            # In a full-async build, this would be awaited via a thread pool
             response = llm_backend.generate(prompt=prompt, system_prompt=effective_system_prompt)
             
             # 4. Update State

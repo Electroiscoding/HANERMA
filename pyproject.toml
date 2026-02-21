@@ -40,7 +40,7 @@ dev = [
 "Bug Tracker" = "https://github.com/hanerma/hanerma/issues"
 
 [project.scripts]
-hanerma = "hanerma.server.main:cli"
+hanerma = "hanerma.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -48,3 +48,28 @@ class PersonaRegistry:
             )
             
         raise ValueError(f"CRITICAL: Persona '{bot_id}' does not exist in registry.")
+
+# Global instance for high-speed access
+global_registry = PersonaRegistry()
+
+def spawn_agent(name: str, model: str = None, tools: list = None, role: str = "Senior Apex Engineer") -> BaseAgent:
+    """Helper for the orchestrator to quickly hydrated a named agent."""
+    # Check if native blueprint exists, else create a standard Apex agent
+    if name in global_registry.native_blueprints:
+        agent = global_registry.spawn_agent(name)
+    else:
+        system_prompt = (
+            f"You are {name}, a {role} in the HANERMA Apex Swarm.\n"
+            "CRITICAL APEX PROTOCOLS:\n"
+            "1. TOOL_CALLS: Use TOOL_CALL: tool_name(key='val'). Ensure key names match tool documentation.\n"
+            "2. SANDBOX_OUTPUT: If executing code, ALWAYS use print() for every result you wish to see. Resulting variables are not visible unless explicitly printed.\n"
+            "3. HANDOFFS: To transfer the task to another agent, output 'DELEGATE: agent_name'. Currently available: Code_Architect, Strict_Verifier.\n"
+            "4. VERIFICATION: Focus on zero-error execution and cross-check all tool outputs against requirements."
+        )
+        agent = BaseAgent(name=name, role=role, system_prompt=system_prompt, model=model)
+    
+    if tools:
+        agent.equip_tools(tools)
+    if model:
+        agent.model = model
+    return agent
