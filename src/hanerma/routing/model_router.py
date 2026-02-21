@@ -7,33 +7,37 @@ class ModelRouter:
     """
     def __init__(self):
         self.models = {
-            "local_fast": "llama3-8b-instruct",
+            "ollama": "localhost:11434",  # Ollama endpoint
             "frontier_reasoning": "gpt-4o",
             "cheap_long_context": "claude-3-haiku"
         }
 
-    def route_request(self, prompt: str, context_length: int) -> str:
+    def route_request(self, prompt: str, context_length: int, risk_score: float = 0.0) -> str:
         """
-        Determines the best model for the given task.
+        Determines the best model based on token count, risk score, and content analysis.
         """
-        prompt_len = len(prompt)
+        # Compute token count (rough estimate: words / 0.75 for subword tokens)
+        token_count = int(len(prompt.split()) / 0.75)
         
-        # 1. Logic/Complexity Detection
-        reasoning_keywords = ["analyze", "evaluate", "compare", "debug", "complex", "reason"]
-        needs_reasoning = any(word in prompt.lower() for word in reasoning_keywords)
-
-        # 2. Long Context Detection
-        is_long_context = context_length > 20000
-
-        # 3. Routing Logic
-        if needs_reasoning and not is_long_context:
-            return self.models["frontier_reasoning"]
+        # Low risk threshold
+        low_risk = risk_score < 0.5
         
-        if is_long_context:
-            return self.models["cheap_long_context"]
-
-        # Default to fast local for simple tasks
-        return self.models["local_fast"]
+        # Code-heavy detection
+        code_indicators = ["code", "function", "class", "def ", "```", "import ", "print(", "if __name__"]
+        is_code_heavy = any(indicator in prompt.lower() for indicator in code_indicators)
+        
+        # Routing logic
+        if token_count < 1000 and low_risk:
+            return self.models["ollama"]  # Local Ollama
+        
+        if token_count > 20000:
+            return self.models["cheap_long_context"]  # Claude 3 Haiku for long context
+        
+        if is_code_heavy:
+            return self.models["frontier_reasoning"]  # GPT-4o for code reasoning
+        
+        # Default to local for moderate tasks
+        return self.models["ollama"]
 
     def get_routing_metrics(self) -> Dict[str, Any]:
         """Returns statistics on routing decisions."""

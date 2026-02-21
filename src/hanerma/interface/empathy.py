@@ -1,22 +1,57 @@
+import json
+import requests
 from typing import Dict, Any
 
-class EmpathyEngine:
+class EmpathyHandler:
     """
-    Traps stack traces and outputs conversational, actionable failure messages.
-    Ensures the user feels supported rather than frustrated by technical errors.
+    Emotional Failsafe: Sends tracebacks to local model for JSON mitigation strategies.
     """
-    def __init__(self):
-        self.empathy_responses = {
-            "RateLimitError": "It looks like the models are a bit overwhelmed right now. Should I: 1) Wait and retry 2) Switch to a local model?",
-            "ContradictionError": "The reasoner got a bit confused because fact X contradicts memory Y. Should I force a re-reason or ask for your input?",
-            "ContextOverflow": "We're running out of room to think! I can compress the history for you or we can start a fresh thread."
+    
+    def get_mitigation(self, traceback_str: str) -> Dict[str, Any]:
+        """
+        Sends the raw traceback to local Qwen model via Ollama, outputs JSON mitigation.
+        """
+        system_prompt = """
+        You are the Emotional Failsafe AI. Your role is to analyze error tracebacks and provide empathetic, actionable mitigation strategies.
+
+        Analyze the traceback and output ONLY a valid JSON object in this exact format:
+        {
+            "human_readable_message": "A user-friendly explanation of what went wrong and why.",
+            "action": "retry_with_new_prompt" | "ask_human" | "mock_data"
         }
 
-    def handle_failure(self, error_type: str, context: str) -> str:
-        """Returns a friendly, human-like failure message."""
-        message = self.empathy_responses.get(error_type, "Something went slightly off-track here.")
-        return f"[HANERMA Assistant] {message} (Context: {context})"
+        - "retry_with_new_prompt": Suggest retrying with a simplified or corrected prompt.
+        - "ask_human": The error requires human intervention.
+        - "mock_data": Provide safe mock data to continue execution.
+        
+        Be concise and helpful.
+        """
+        
+        full_prompt = f"{system_prompt}\n\nTraceback:\n{traceback_str}\n\nOutput JSON:"
+        
+        # Send to local Ollama Qwen model
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "qwen",
+                "prompt": full_prompt,
+                "stream": False
+            },
+            timeout=10
+        )
+        response.raise_for_status()
+        json_str = response.json()["response"].strip()
+        
+        # Parse and return the JSON
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            # Fallback if parsing fails
+            return {
+                "human_readable_message": "Failed to parse mitigation response. Error in empathy handler.",
+                "action": "ask_human"
+            }
 
-def friendly_fail(error_type: str, context: str = ""):
-    engine = EmpathyEngine()
-    return engine.handle_failure(error_type, context)
+def friendly_fail(traceback_str: str) -> Dict[str, Any]:
+    handler = EmpathyHandler()
+    return handler.get_mitigation(traceback_str)

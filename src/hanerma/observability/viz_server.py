@@ -25,6 +25,8 @@ except ImportError:
 tokenizer = XervCrayonAdapter(profile="lite")
 memory = HCMSManager(tokenizer=tokenizer)
 orchestrator = HANERMAOrchestrator(model="Qwen/Qwen3-Coder-Next-FP8:together", tokenizer=tokenizer)
+orchestrator.pause_event = asyncio.Event()
+orchestrator.pause_event.set()  # Start running
 
 # Use REAL tools (Root-level)
 sandbox = NativeCodeSandbox()
@@ -292,6 +294,10 @@ DASHBOARD_HTML = r"""
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Agent Foundry
         </div>
+        <div class="nav-link" onclick="nav('designer', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            Visual Architect
+        </div>
         <div class="nav-link" onclick="nav('memory-vault', this)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
             Memory Vault
@@ -319,7 +325,14 @@ DASHBOARD_HTML = r"""
 
         <div id="op-center" class="content-wrap" style="display: flex;">
             <div class="pane" style="flex: 1.8;">
-                <div class="pane-header"><span class="pane-title">Causal Intelligence Web</span></div>
+                <div class="pane-header">
+                    <span class="pane-title">Causal Intelligence Web</span>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="pauseGraph()" style="padding: 5px 10px; background: var(--risk); color: white; border: none; border-radius: 5px; cursor: pointer;">Pause</button>
+                        <button onclick="resumeGraph()" style="padding: 5px 10px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer;">Resume</button>
+                        <button onclick="editState()" style="padding: 5px 10px; background: var(--accent); color: white; border: none; border-radius: 5px; cursor: pointer;">Edit State</button>
+                    </div>
+                </div>
                 <div id="viz-area">
                     <svg id="canvas-graph"></svg>
                 </div>
@@ -519,6 +532,26 @@ DASHBOARD_HTML = r"""
             });
         }
 
+        function pauseGraph() {
+            fetch('/api/graph/pause', {method: 'POST'});
+        }
+
+        function resumeGraph() {
+            fetch('/api/graph/resume', {method: 'POST'});
+        }
+
+        function editState() {
+            const agent = prompt("Agent name:");
+            const memory = prompt("New memory:");
+            if (agent && memory) {
+                fetch('/api/graph/edit_state', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({agent_name: agent, new_memory: memory})
+                });
+            }
+        }
+
         function connectWS() {
             const ws = new WebSocket(`ws://${location.host}/ws`);
             const bucket = document.getElementById('trace-bucket');
@@ -604,6 +637,25 @@ async def execute_task(req: ExecutionRequest):
 
 async def async_run(prompt, agent):
     await orchestrator.run(prompt, target_agent=agent)
+
+@app.post("/api/graph/pause")
+async def pause_graph():
+    orchestrator.pause_event.clear()
+    return {"status": "paused"}
+
+@app.post("/api/graph/resume")
+async def resume_graph():
+    orchestrator.pause_event.set()
+    return {"status": "resumed"}
+
+@app.post("/api/graph/edit_state")
+async def edit_state(request: Request):
+    data = await request.json()
+    agent_name = data.get("agent_name")
+    new_memory = data.get("new_memory")
+    if agent_name in orchestrator.active_agents:
+        orchestrator.active_agents[agent_name].state_manager = new_memory  # Update agent's memory
+    return {"status": "updated"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

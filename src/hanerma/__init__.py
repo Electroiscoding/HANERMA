@@ -8,6 +8,10 @@ from .memory.manager import HCMSManager
 from .agents.registry import PersonaRegistry
 from .tools.registry import ToolRegistry
 from .server.main import app as api_server
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from hanerma_quick import Natural
 
 __version__ = "1.0.0-alpha"
 __all__ = [
@@ -15,5 +19,6 @@ __all__ = [
     "HCMSManager",
     "PersonaRegistry",
     "ToolRegistry",
-    "api_server"
+    "api_server",
+    "Natural"
 ]

@@ -1,4 +1,43 @@
+import inspect
 from typing import Dict, Type, Any, Callable, List
+from pydantic import create_model
+
+class Tool:
+    """
+    Universal tool wrapper that dynamically generates JSON schema from function type hints and docstrings.
+    """
+    def __init__(self, func: Callable):
+        self.func = func
+        self.name = func.__name__
+        self.description = func.__doc__ or ""
+        
+        # Get signature and build pydantic model
+        sig = inspect.signature(func)
+        params = {}
+        for param_name, param in sig.parameters.items():
+            param_type = param.annotation if param.annotation != param.empty else Any
+            default = ... if param.default == param.empty else param.default
+            params[param_name] = (param_type, default)
+        
+        self.model = create_model(f"{self.name}Model", **params)
+        self.schema = self.model.model_json_schema()
+    
+    def call(self, **kwargs) -> Any:
+        """
+        Calls the tool function with validated arguments, returning traceback on failure.
+        """
+        try:
+            validated = self.model(**kwargs)
+            return self.func(**validated.dict())
+        except Exception:
+            import traceback
+            return traceback.format_exc()
+
+def tool(func: Callable) -> Tool:
+    """
+    Decorator to create a universal tool from any Python function.
+    """
+    return Tool(func)
 
 class ToolRegistry:
     """

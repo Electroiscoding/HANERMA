@@ -1,7 +1,10 @@
 import faiss
 import numpy as np
+import requests
+import json
 from typing import Dict, Any, List
 from hanerma.memory.compression.base_tokenizer import BaseHyperTokenizer
+from hanerma.state.transactional_bus import TransactionalEventBus
 
 
 class HCMSManager:
@@ -13,8 +16,9 @@ class HCMSManager:
       3. Token-aware retrieval via spectral hashing
     """
 
-    def __init__(self, tokenizer: BaseHyperTokenizer, embedding_dim: int = 128):
+    def __init__(self, tokenizer: BaseHyperTokenizer, bus: TransactionalEventBus, embedding_dim: int = 128):
         self.tokenizer = tokenizer
+        self.bus = bus
         self.embedding_dim = embedding_dim
 
         # FAISS for semantic similarity search
@@ -26,6 +30,58 @@ class HCMSManager:
         self.graph_db = None
 
         print(f"[HCMS] Memory Store Online. Dimension: {self.embedding_dim}. Index: FAISS FlatL2.")
+
+    async def extract_user_style(self):
+        """
+        Background task: every 5 interactions, extract user style from prompts using local LLM.
+        """
+        prompts = self.bus.get_recent_user_prompts(5)
+        if len(prompts) < 5:
+            return {}
+        
+        combined = "\n".join(prompts)
+        prompt = f"Analyze these user prompts and extract preferred verbosity (short/long/detailed), tone (formal/casual/professional), tool usage (list preferred tools or 'any').\n\nPrompts:\n{combined}\n\nOutput JSON: {{\"verbosity\": \"...\", \"tone\": \"...\", \"tool_usage\": \"...\"}}"
+        
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={"model": "qwen", "prompt": prompt, "stream": False}
+        )
+        response.raise_for_status()
+        json_str = response.json()["response"].strip()
+        
+        style = json.loads(json_str)
+        self.bus.record_step("user_style", 0, "update", style)
+        return style
+
+    def log_failure_pattern(self, pattern: Dict[str, Any]):
+        """
+        Logs failure pattern when Z3 catches contradiction or human corrects.
+        """
+        self.bus.record_step("failure_patterns", 0, "log", pattern)
+    
+    async def feedback_loop(self):
+        """
+        Background task: every 10 failures, analyze patterns and generate new logical axiom.
+        """
+        patterns = self.bus.get_recent_failure_patterns(10)
+        if len(patterns) < 10:
+            return
+        
+        # Analyze with local LLM
+        patterns_text = "\n".join([str(p) for p in patterns])
+        prompt = f"Analyze these failure patterns and generate a new logical axiom to prevent similar contradictions.\n\nPatterns:\n{patterns_text}\n\nOutput a new axiom as a string (e.g., 'If x > y and y > z then x > z'):"
+        
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={"model": "qwen", "prompt": prompt, "stream": False}
+        )
+        response.raise_for_status()
+        new_axiom = response.json()["response"].strip()
+        
+        # Add to symbolic reasoner rules
+        from hanerma.reliability.symbolic_reasoner import SymbolicReasoner
+        reasoner = SymbolicReasoner()
+        reasoner.add_rule(new_axiom)
 
     def store_atomic_memory(self, session_id: str, raw_text: str, entity_type: str = "context"):
         """

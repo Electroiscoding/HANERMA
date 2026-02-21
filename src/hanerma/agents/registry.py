@@ -1,7 +1,69 @@
-from typing import Dict, Type, Any
+from typing import Dict, Type, Any, List
 from hanerma.agents.base_agent import BaseAgent
 # In a full build, this imports the native, hardened classes
 # from hanerma.agents.native_personas import DeepReasoner, SystemVerifier
+
+class PubSub:
+    """Simple Publisher/Subscriber for agent communication."""
+    def __init__(self):
+        self.channels: Dict[str, List[BaseAgent]] = {}
+    
+    def subscribe(self, channel: str, agent: BaseAgent):
+        if channel not in self.channels:
+            self.channels[channel] = []
+        self.channels[channel].append(agent)
+    
+    def publish(self, channel: str, message: str):
+        for agent in self.channels.get(channel, []):
+            agent.receive(message)
+
+class SwarmFactory:
+    """Zero-boilerplate factory for creating and wiring agent swarms."""
+    
+    def create(self, pattern: str, n: int = 5) -> Dict[str, Any]:
+        """Creates and wires a swarm based on the pattern."""
+        if pattern == "supervisor_workers":
+            return self._create_supervisor_workers(n)
+        else:
+            raise ValueError(f"Unknown swarm pattern: {pattern}")
+    
+    def _create_supervisor_workers(self, n: int) -> Dict[str, Any]:
+        """Creates 1 Supervisor and n Workers, wires PubSub channels."""
+        pubsub = PubSub()
+        
+        # Create Supervisor
+        supervisor = spawn_agent("Supervisor", role="Swarm Supervisor", model="qwen")
+        
+        # Create Workers
+        workers = []
+        for i in range(n):
+            worker = spawn_agent(f"Worker_{i+1}", role="Swarm Worker", model="qwen")
+            workers.append(worker)
+        
+        # Wire channels: Supervisor publishes tasks to workers, workers publish results to supervisor
+        task_channel = "worker_tasks"
+        result_channel = "supervisor_results"
+        
+        for worker in workers:
+            pubsub.subscribe(task_channel, worker)
+        
+        pubsub.subscribe(result_channel, supervisor)
+        
+        # Store pubsub in agents for publishing
+        supervisor._pubsub = pubsub
+        supervisor._task_channel = task_channel
+        supervisor._result_channel = result_channel
+        
+        for worker in workers:
+            worker._pubsub = pubsub
+            worker._task_channel = task_channel
+            worker._result_channel = result_channel
+        
+        return {
+            "supervisor": supervisor,
+            "workers": workers,
+            "pubsub": pubsub
+        }
 
 class PersonaRegistry:
     """

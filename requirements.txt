@@ -26,3 +26,19 @@ black>=23.10.1
 isort>=5.12.0
 mypy>=1.6.1
 ruff>=0.1.5
+
+# Symbolic Reasoning
+z3-solver>=4.12.1
+
+# Embeddings
+sentence-transformers>=2.2.0
+
+# HTTP Client
+httpx>=0.25.0
+
+# Speech & Vision
+faster-whisper>=0.10.0
+pyaudio>=0.2.13
+
+# Distributed Networking
+grpcio>=1.60.0

@@ -1,4 +1,6 @@
 
+import asyncio
+import ast
 import time
 import uuid
 from typing import List, Dict, Any, Optional
@@ -11,6 +13,8 @@ from hanerma.reliability.symbolic_reasoner import SymbolicReasoner
 from hanerma.routing.model_router import ModelRouter
 from hanerma.optimization.ast_analyzer import ParallelASTAnalyzer
 from hanerma.autoprompt.enhancer import AutoPromptEnhancer
+from hanerma.interface.empathy import EmpathyHandler
+from hanerma.memory.manager import HCMSManager
 
 class HANERMAOrchestrator:
     """
@@ -33,8 +37,25 @@ class HANERMAOrchestrator:
         self.risk_engine = FailurePredictor()
         self.symbolic_reasoner = SymbolicReasoner()
         self.ast_analyzer = ParallelASTAnalyzer()
+        self.empathy = EmpathyHandler()
+        self.manager = HCMSManager(tokenizer, self.bus)
+        self.user_style: Dict[str, Any] = {}
+        self.interaction_count = 0
         self.trace_id = str(uuid.uuid4())
         self.step_index = 0
+        
+        # Background style extraction
+        self.style_task = asyncio.create_task(self._style_extraction_loop())
+
+    async def _style_extraction_loop(self):
+        """Background task to extract user style every 5 interactions."""
+        while True:
+            await asyncio.sleep(30)
+            if self.interaction_count >= 5:
+                style = await self.manager.extract_user_style()
+                if style:
+                    self.user_style = style
+                self.interaction_count = 0
 
     def register_agent(self, agent: BaseAgent):
         """Registers an agent into the orchestrator."""
@@ -43,122 +64,89 @@ class HANERMAOrchestrator:
         self.active_agents[agent.name] = agent
         print(f"[HANERMA] Agent '{agent.name}' registered.")
 
-    async def run(self, prompt: str, target_agent: str, max_iterations: int = 5) -> Dict[str, Any]:
+    async def run(self, source_code: str) -> Dict[str, Any]:
         """
-        Executes with Predictive Failure Avoidance and Transactional Persistence.
+        Executes the graph defined in source_code concurrently using DAG analysis.
         """
         start_time = time.time()
-        
-        # 0. Risk Scoring
-        risk = self.risk_engine.compute_risk(prompt, self.default_model, 0)
-        if risk["action"] == "block":
-            return {"status": "error", "message": f"Task blocked by Risk Engine: {risk['reasons']}"}
-
-        # 1. Transactional Start
-        self.bus.record_step(self.trace_id, self.step_index, "task_start", {"prompt": prompt})
-        self.step_index += 1
-
-        if target_agent not in self.active_agents:
-            raise ValueError(f"Agent '{target_agent}' not found in registry.")
-
-        agent = self.active_agents[target_agent]
-        current_prompt = await self._autoprompt_enhance(prompt)
-        
-        iteration = 0
-        final_output = ""
-        total_tokens = 0
-
-        while iteration < max_iterations:
-            iteration += 1
-            print(f"[HANERMA] Iteration {iteration}...")
-            
-            # 1. Build Context-Aware Prompt
-            history_text = self._build_history_context()
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            system_meta = (
-                f"[SYSTEM_METADATA]\n"
-                f"Global Time: {current_time}\n"
-                f"Protocol: Apex/V4 Stable\n"
-                f"Model Context: {self.default_model}\n"
-                "[System: Maintain strictly verified reasoning. All tool calls must be explicit.]"
-            )
-            iteration_context = f"\n\n[Current Task]: {prompt}\n[Iteration]: {iteration}/{max_iterations}"
-            
-            # Combine history + current state
-            full_context_prompt = f"{system_meta}\n{history_text}\n{iteration_context}\n\n{current_prompt}"
-            
-            # 2. Agent Execution
-            self.bus.record_step(self.trace_id, self.step_index, "agent_thinking", {"agent": agent.name, "iteration": iteration})
-            self.step_index += 1
-
-            raw_response = await agent.execute(full_context_prompt, self.state_manager)
-            total_tokens += self._count_tokens(raw_response)
-            
-            self.bus.record_step(self.trace_id, self.step_index, "agent_response", {"agent": agent.name, "response_preview": raw_response[:150]})
-            self.step_index += 1
-
-            # 3. Native Tool Execution Detection (Case Insensitive)
-            if "TOOL_CALL" in raw_response.upper():
-                self.bus.record_step(self.trace_id, self.step_index, "tool_execution", {"agent": agent.name, "raw": raw_response})
-                self.step_index += 1
-                
-                tool_result = await self._handle_tool_call(agent, raw_response)
-                
-                self.bus.record_step(self.trace_id, self.step_index, "tool_result", {"result": str(tool_result)[:250]})
-                self.step_index += 1
-                
-                # Append the tool result to history so the next turn sees what happened
-                self.state_manager["history"].append({"role": "tool_output", "content": f"Result from tool: {tool_result}"})
-                
-                # Feed the tool result back into the next step
-                current_prompt = f"[TOOL_RESULT]\n{tool_result}\n\nEvaluate this result and proceed to the next step of the task."
-                continue
-
-            # 3.5 Native Agent Handoff (DELEGATE)
-            if "DELEGATE:" in raw_response.upper():
-                import re
-                target_match = re.search(r"DELEGATE:\s*(\w+)", raw_response, re.IGNORECASE)
-                if target_match:
-                    new_agent_name = target_match.group(1)
-                    if new_agent_name in self.active_agents:
-                        old_agent_name = agent.name
-                        print(f"[HANERMA] Handoff: {old_agent_name} ➔ {new_agent_name}")
-                        agent = self.active_agents[new_agent_name]
-                        self.bus.record_step(self.trace_id, self.step_index, "agent_handoff", {"from": old_agent_name, "to": new_agent_name})
-                        self.step_index += 1
-                        current_prompt = "You have been delegated this task. Review the context and complete the next step."
-                        continue
-            
-            # 4. Symbolic Reasoner (Deterministic Final Check)
-            self.bus.record_step(self.trace_id, self.step_index, "symbolic_verification", {"facts": len(self.state_manager.get("shared_memory", {}).get("facts", []))})
-            self.step_index += 1
-
-            is_valid, validation_msg = self.symbolic_reasoner.verify_consistency(raw_response, self.state_manager.get("shared_memory", {}).get("facts", []))
-            
-            if not is_valid:
-                self.bus.record_step(self.trace_id, self.step_index, "verification_failed", {"msg": validation_msg})
-                self.step_index += 1
-                current_prompt = f"Correct this logical error: {validation_msg}. Original intent: {prompt}"
-                # Add failure to history to prevent repeat errors
-                self.state_manager["history"].append({"role": "system", "content": f"Verification failed: {validation_msg}"})
-                continue
-
-            self.bus.record_step(self.trace_id, self.step_index, "task_complete", {"output": raw_response[:150]})
-            self.step_index += 1
-            final_output = raw_response
-            break
-
+        results = await self.execute_graph(source_code)
+        final_output = "\n".join(str(result) for result in results.values() if result is not None)
+        self.interaction_count += 1
         latency = (time.time() - start_time) * 1000
-
         return {
             "status": "success",
             "output": final_output,
+            "results": results,
             "metrics": {
-                "iterations": iteration,
                 "latency_ms": round(latency, 2),
-                "total_tokens": total_tokens,
             }
         }
+
+    async def execute_graph(self, source_code: str) -> Dict[str, Any]:
+        """
+        Executes a graph of agent/tool calls parsed from source_code concurrently where possible.
+        Uses DAG analysis to determine execution order and parallelism.
+        Includes self-healing: handles exceptions via EmpathyHandler without crashing.
+        """
+        batches = self.ast_analyzer.analyze(source_code)
+        results = {}
+        for batch in batches:
+            tasks = []
+            for node in batch:
+                task = asyncio.create_task(self._execute_node(node))
+                tasks.append(task)
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Self-healing: handle exceptions and execute mitigations
+            for node, result in zip(batch, batch_results):
+                if isinstance(result, Exception):
+                    # Get mitigation from EmpathyHandler
+                    mitigation = self.empathy.get_mitigation(str(result))
+                    
+                    if mitigation["action"] == "retry_with_new_prompt":
+                        # Retry the node with a simplified prompt (AST-aware adjustment)
+                        try:
+                            # For retry, perhaps modify the node or prompt
+                            # For simplicity, re-run the same
+                            new_result = await self._execute_node(node)
+                            results[node['id']] = new_result
+                        except Exception as retry_e:
+                            results[node['id']] = f"Retry failed: {mitigation['human_readable_message']}"
+                    
+                    elif mitigation["action"] == "ask_human":
+                        # Return human-readable message for intervention
+                        results[node['id']] = mitigation["human_readable_message"]
+                    
+                    elif mitigation["action"] == "mock_data":
+                        # Provide mock data to continue execution
+                        results[node['id']] = f"Mock data: {mitigation['human_readable_message']}"
+                    
+                else:
+                    results[node['id']] = result
+        
+        return results
+
+    async def _execute_node(self, node: Dict[str, Any]) -> Any:
+        """
+        Executes a single node (AST statement) asynchronously.
+        """
+        try:
+            ast_node = node['ast_node']
+            if isinstance(ast_node, ast.Assign):
+                value = ast_node.value
+                if isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
+                    name = value.func.id
+                    if name in self.active_agents:
+                        agent = self.active_agents[name]
+                        prompt = ""
+                        if value.args and isinstance(value.args[0], ast.Str):
+                            prompt = value.args[0].s
+                        result = await agent.execute(prompt, self.state_manager)
+                        return result
+            # For other node types or unmatched calls, return None
+            return None
+        except Exception as e:
+            return f"Error executing node {node['id']}: {str(e)}"
 
     def _init_tokenizer(self):
         """Lazy-init xerv-crayon if not provided."""

@@ -1,0 +1,123 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "HANERMA Telemetry",
+    "tags": ["hanerma"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Tokens Consumed Total",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "tokens_consumed_total",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Tool Latency Seconds",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(tool_latency_seconds_sum[5m]) / rate(tool_latency_seconds_count[5m])",
+            "refId": "A",
+            "legendFormat": "Avg Tool Latency"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Hallucinations Caught",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "hallucinations_caught",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 4,
+        "title": "DAG Execution Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(dag_execution_time_sum[5m]) / rate(dag_execution_time_count[5m])",
+            "refId": "A",
+            "legendFormat": "Avg DAG Execution Time"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "5s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+  }
+}
