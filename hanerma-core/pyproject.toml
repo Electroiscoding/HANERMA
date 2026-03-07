@@ -1,0 +1,13 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "hanerma-core"
+version = "0.1.0"
+description = "High-performance Rust-backed DAG execution engine for HANERMA"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+
+[tool.maturin]
+features = ["pyo3/extension-module"]

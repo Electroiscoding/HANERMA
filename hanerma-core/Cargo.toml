@@ -1,0 +1,17 @@
+[package]
+name = "hanerma-core"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance Rust-backed DAG execution engine for HANERMA"
+license = "MIT"
+
+[lib]
+name = "hanerma_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+tokio = { version = "1", features = ["full"] }
+rayon = "1"
+sled = "0.34"
+dashmap = "6"
