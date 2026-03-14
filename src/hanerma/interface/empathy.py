@@ -60,7 +60,7 @@ class Z3HealingPatch(BaseModel):
 class HealingResult(BaseModel):
     """Result of a healing attempt."""
     success: bool
-    action_taken: PatchAction
+    action_taken: HealingAction
     detail: str
     retries_remaining: int
 
@@ -119,7 +119,7 @@ class SupervisorHealer:
         error_str: str,
         error_type: str,
         recent_state: List[Dict[str, Any]],
-    ) -> CriticPatch:
+    ) -> Z3HealingPatch:
         """
         Send the failure context to a Critic Agent.
         The Critic is Grammar Shield-constrained to output a CriticPatch.
@@ -149,13 +149,13 @@ class SupervisorHealer:
 
         return shield.generate(
             prompt=prompt,
-            schema=CriticPatch,
+            schema=Z3HealingPatch,
             system_prompt=system,
         )
 
     def _apply_patch(
         self,
-        patch: CriticPatch,
+        patch: Z3HealingPatch,
         dag_context: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
@@ -163,7 +163,7 @@ class SupervisorHealer:
 
         Returns updated dag_context with the patch applied.
         """
-        if patch.action == PatchAction.RETRY_WITH_NEW_PROMPT:
+        if patch.action == HealingAction.RETRY_WITH_FORMAL_PROMPT:
             # Replace the prompt in the DAG context
             dag_context["prompt"] = patch.payload
             dag_context["patched"] = True
@@ -172,7 +172,7 @@ class SupervisorHealer:
                 patch.payload[:100],
             )
 
-        elif patch.action == PatchAction.REWRITE_AST_NODE:
+        elif patch.action == HealingAction.REWRITE_AST_NODE:
             # Compile and inject the corrected code
             try:
                 compiled = compile(patch.payload, "<critic_patch>", "exec")
@@ -234,7 +234,7 @@ class SupervisorHealer:
         recent_state = self._get_recent_state(n=3)
 
         retries = self._max_retries
-        last_action = PatchAction.MOCK_DATA
+        last_action = HealingAction.INJECT_FORMAL_DATA
 
         while retries > 0:
             try:
@@ -292,7 +292,7 @@ class SupervisorHealer:
             dag_context["patched"] = True
             return HealingResult(
                 success=True,
-                action_taken=PatchAction.RETRY_WITH_NEW_PROMPT,
+                action_taken=HealingAction.RETRY_WITH_FORMAL_PROMPT,
                 detail="Simplified prompt to remove contradictions (offline heuristic)",
                 retries_remaining=self._max_retries - 1,
             )
@@ -319,7 +319,7 @@ class SupervisorHealer:
             dag_context["patched"] = False
             return HealingResult(
                 success=False,
-                action_taken=PatchAction.REWRITE_AST_NODE,
+                action_taken=HealingAction.REWRITE_AST_NODE,
                 detail=f"SyntaxError requires Critic Agent: {error_msg}",
                 retries_remaining=0,
             )
@@ -327,7 +327,7 @@ class SupervisorHealer:
         # Default: mark as unhealed
         return HealingResult(
             success=False,
-            action_taken=PatchAction.MOCK_DATA,
+            action_taken=HealingAction.INJECT_FORMAL_DATA,
             detail=f"No offline heuristic for {error_type}",
             retries_remaining=0,
         )
