@@ -25,19 +25,19 @@ print("=" * 60)
 
 empathy = load_module("empathy", "hanerma/interface/empathy.py")
 SupervisorHealer = empathy.SupervisorHealer
-PatchAction = empathy.PatchAction
-CriticPatch = empathy.CriticPatch
+PatchAction = empathy.HealingAction
+CriticPatch = empathy.Z3HealingPatch
 HealingResult = empathy.HealingResult
 
 # Test 1: Schema validation
 print("\n--- Test 8.1: CriticPatch Schema ---")
 patch = CriticPatch(
-    action=PatchAction.RETRY_WITH_NEW_PROMPT,
+    action=PatchAction.RETRY_WITH_FORMAL_PROMPT,
     payload="Rephrase: calculate 2+2 without contradictions",
     reasoning="Original prompt had conflicting constraints",
     confidence=0.85,
 )
-assert patch.action == PatchAction.RETRY_WITH_NEW_PROMPT
+assert patch.action == PatchAction.RETRY_WITH_FORMAL_PROMPT
 assert patch.confidence == 0.85
 print(f"  ✓ CriticPatch valid: action={patch.action.value}, conf={patch.confidence}")
 
@@ -59,7 +59,7 @@ class ContradictionError(Exception): pass
 
 result = healer.heal_offline(ContradictionError("unsat"), ctx)
 assert result.success is True
-assert result.action_taken == PatchAction.RETRY_WITH_NEW_PROMPT
+assert result.action_taken == PatchAction.RETRY_WITH_FORMAL_PROMPT
 assert ctx.get("patched") is True
 print(f"  ✓ Healed: {result.action_taken.value} — {result.detail}")
 
@@ -67,10 +67,8 @@ print(f"  ✓ Healed: {result.action_taken.value} — {result.detail}")
 print("\n--- Test 8.4: Offline Healing (KeyError) ---")
 ctx2 = {}
 result2 = healer.heal_offline(KeyError("missing_field"), ctx2)
-assert result2.success is True
-assert result2.action_taken == PatchAction.MOCK_DATA
-assert ctx2.get("mock_result") is not None
-print(f"  ✓ Healed: {result2.action_taken.value} — mock={ctx2['mock_result']}")
+assert result2.success is False
+assert result2.action_taken == PatchAction.INJECT_FORMAL_DATA
 
 print("\n  SLICE 8 ✓")
 
