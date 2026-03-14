@@ -16,6 +16,10 @@ class MultitenantStateManager:
         self.memory_store = memory_store
         self.bus = bus
         self.active_sessions: Dict[str, Dict[str, Any]] = {}
+        if self.bus and hasattr(self.bus, 'raft'):
+            self.raft_consensus = self.bus.raft
+        else:
+            self.raft_consensus = RaftConsensus("local", {"local": "localhost"})
     
     def initialize_session(self, session_id: str, user_id: str):
         if session_id not in self.active_sessions:
@@ -80,6 +84,7 @@ class MultitenantStateManager:
             "agent_config": agent_config
         }
         
+        self.raft_consensus.propose_operation(operation)
         if self.bus:
             self.bus.record_step("kv_cache", 0, "store", cache_data)
     

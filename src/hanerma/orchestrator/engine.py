@@ -104,37 +104,47 @@ class HANERMAOrchestrator:
         results = {}
         failed_nodes = set()
         
-        # Execute in topological order
-        for node_id in nx.topological_sort(self.current_dag):
-            if node_id in failed_nodes:
-                continue
-                
-            node = self.current_dag.nodes[node_id]['data']
+        # Execute in topological generations for parallel DAG execution
+        for generation in nx.topological_generations(self.current_dag):
+            tasks = []
+            valid_nodes = []
             
-            # Validate state before execution
-            if not self._validate_state_pre_execution():
-                # State is invalid, attempt rollback
-                await self._rollback_to_last_valid_state(self.step_index)
-                continue
-            
-            # Record step start
-            self.bus.record_step(self.trace_id, self.step_index, "node_start", {"node_id": node_id}, self.state_manager)
-            
-            try:
-                result = await self._execute_node_with_validation(node)
-                results[node_id] = result
+            for node_id in generation:
+                if node_id in failed_nodes:
+                    continue
+
+                node = self.current_dag.nodes[node_id]['data']
                 
-                # Validate state after execution
-                if not self._validate_state_post_execution():
-                    raise ValueError(f"State validation failed after executing node {node_id}")
+                # Validate state before execution
+                if not self._validate_state_pre_execution():
+                    # State is invalid, attempt rollback
+                    await self._rollback_to_last_valid_state(self.step_index)
+                    break
                 
-                # Record successful step
-                self.bus.record_step(self.trace_id, self.step_index + 1, "node_success", {"node_id": node_id, "result": str(result)}, self.state_manager)
+                # Record step start
+                self.bus.record_step(self.trace_id, self.step_index, "node_start", {"node_id": node_id}, self.state_manager)
+                
+                tasks.append(self._execute_node_with_validation(node))
+                valid_nodes.append(node_id)
+
+            if tasks:
+                results_list = await asyncio.gather(*tasks, return_exceptions=True)
+                for idx, res in enumerate(results_list):
+                    node_id = valid_nodes[idx]
+                    if isinstance(res, Exception):
+                        # Failure detected - implement MVCC rollback and AST patching
+                        await self._handle_node_failure(node_id, res, failed_nodes)
+                    else:
+                        results[node_id] = res
+
+                        # Validate state after execution
+                        if not self._validate_state_post_execution():
+                            raise ValueError(f"State validation failed after executing node {node_id}")
+
+                        # Record successful step
+                        self.bus.record_step(self.trace_id, self.step_index + 1, "node_success", {"node_id": node_id, "result": str(res)}, self.state_manager)
+
                 self.step_index += 1
-                
-            except Exception as e:
-                # Failure detected - implement MVCC rollback and AST patching
-                await self._handle_node_failure(node_id, e, failed_nodes)
                 
         return results
 
