@@ -1,0 +1,414 @@
+Function: print_aura_logo (File: src/hanerma/main.py)
+Function: summarize_superiority_layers (File: src/hanerma/main.py)
+Class: HANERMAApex (File: src/hanerma/apex.py)
+  Method: get_system_status
+Class: Natural (File: src/hanerma/__init__.py)
+  Method: run
+  Method: style
+  Method: voice
+Class: LegacyWrapper (File: src/hanerma/__init__.py)
+Function: Natural (File: src/hanerma/__init__.py)
+Function: Legacy (File: src/hanerma/__init__.py)
+Function: cli (File: src/hanerma/__init__.py)
+Function: warning_filter (File: src/hanerma/__init__.py)
+Function: legacy_wrapper (File: src/hanerma/__init__.py)
+Function: main (File: src/hanerma/cli.py)
+Function: voice_to_nlp (File: src/hanerma/cli.py)
+Function: run_app (File: src/hanerma/cli.py)
+Class: ResurrectionTrigger (File: src/hanerma/resurrection/system.py)
+Class: ResurrectionAction (File: src/hanerma/resurrection/system.py)
+Class: AgentSnapshot (File: src/hanerma/resurrection/system.py)
+Class: AutonomousResurrection (File: src/hanerma/resurrection/system.py)
+  Method: capture_agent_snapshot
+  Method: detect_failure
+  Method: get_resurrection_status
+  Method: cleanup_old_snapshots
+Class: AgentRole (File: src/hanerma/agents/swarm_supervisor.py)
+Class: AgentStatus (File: src/hanerma/agents/swarm_supervisor.py)
+Class: SwarmAgent (File: src/hanerma/agents/swarm_supervisor.py)
+Class: SwarmTask (File: src/hanerma/agents/swarm_supervisor.py)
+Class: SwarmSupervisor (File: src/hanerma/agents/swarm_supervisor.py)
+  Method: register_agent
+  Method: assign_task
+  Method: get_swarm_status
+  Method: get_agent_performance
+  Method: cleanup_completed_tasks
+Class: CUAAction (File: src/hanerma/agents/cua_agent.py)
+Class: CUASafetyLevel (File: src/hanerma/agents/cua_agent.py)
+Class: CUAAction (File: src/hanerma/agents/cua_agent.py)
+Class: CUAResult (File: src/hanerma/agents/cua_agent.py)
+Class: CUAgent (File: src/hanerma/agents/cua_agent.py)
+Class: PubSub (File: src/hanerma/agents/registry.py)
+  Method: subscribe
+  Method: publish
+Class: SwarmFactory (File: src/hanerma/agents/registry.py)
+  Method: create
+Class: PersonaRegistry (File: src/hanerma/agents/registry.py)
+  Method: register_native
+  Method: inject_builder_persona
+  Method: spawn_agent
+Function: spawn_agent (File: src/hanerma/agents/registry.py)
+Class: SwarmHandoffTool (File: src/hanerma/agents/swarm_protocol.py)
+Class: BaseAgent (File: src/hanerma/agents/base_agent.py)
+  Method: equip_tools
+Class: BaseAgent (File: src/hanerma/agents/base.py)
+  Method: inherit_context
+Class: PersonaParser (File: src/hanerma/agents/builder_personas/persona_parser.py)
+  Method: create_dynamic_agent
+Class: DynamicAgent (File: src/hanerma/agents/builder_personas/persona_parser.py)
+Class: CodeArchitectAgent (File: src/hanerma/agents/native_personas/code_architect.py)
+  Method: write_and_test
+Class: SystemVerifier (File: src/hanerma/agents/native_personas/system_verifier.py)
+  Method: execute
+Class: DeepReasonerAgent (File: src/hanerma/agents/native_personas/deep_reasoner.py)
+Function: get_verifier_prompt (File: src/hanerma/agents/roles/verifier.py)
+Function: get_researcher_prompt (File: src/hanerma/agents/roles/researcher.py)
+Class: RaftState (File: src/hanerma/orchestrator/message_bus.py)
+Class: LogEntry (File: src/hanerma/orchestrator/message_bus.py)
+  Method: to_dict
+  Method: from_dict
+Class: RaftConsensus (File: src/hanerma/orchestrator/message_bus.py)
+  Method: generate_idempotency_key
+Class: DistributedEventBus (File: src/hanerma/orchestrator/message_bus.py)
+  Method: subscribe
+  Method: dispatch_tool
+  Method: get_peers
+  Method: get_raft_status
+Class: TelemetryManager (File: src/hanerma/orchestrator/telemetry.py)
+  Method: start_timer
+  Method: stop_timer
+  Method: count_tokens
+  Method: log_event
+Class: AgentSpec (File: src/hanerma/orchestrator/nlp_compiler.py)
+Class: DAGSpec (File: src/hanerma/orchestrator/nlp_compiler.py)
+Class: NLPCompiler (File: src/hanerma/orchestrator/nlp_compiler.py)
+  Method: compile_prompt_to_dag
+  Method: spawn_agents
+Function: compile_prompt_to_graph (File: src/hanerma/orchestrator/nlp_compiler.py)
+Function: make_callable (File: src/hanerma/orchestrator/nlp_compiler.py)
+Function: run (File: src/hanerma/orchestrator/nlp_compiler.py)
+Class: MultitenantStateManager (File: src/hanerma/orchestrator/state_manager.py)
+  Method: initialize_session
+  Method: push_to_infinite_memory
+  Method: get_agent_context
+  Method: get_cache_key
+  Method: get_cached_response
+  Method: set_cached_response
+  Method: invalidate_cache_for_session
+Class: DAGRouter (File: src/hanerma/orchestrator/graph_router.py)
+Class: HANERMAOrchestrator (File: src/hanerma/orchestrator/engine.py)
+  Method: inject_style_into_agent_prompt
+  Method: register_agent
+  Method: get_raft_status
+  Method: get_executed_commands
+  Method: is_command_executed
+Class: RecursiveBound (File: src/hanerma/orchestrator/recursive_bound.py)
+  Method: enter_frame
+  Method: exit_frame
+Class: ReplicatedStateStore (File: src/hanerma/orchestrator/consensus.py)
+  Method: replicated_put
+  Method: replicated_delete
+  Method: replicated_batch_put
+  Method: get
+  Method: contains
+  Method: keys
+  Method: op_count
+  Method: store_len
+Class: ClusterNode (File: src/hanerma/orchestrator/consensus.py)
+Class: ClusterManager (File: src/hanerma/orchestrator/consensus.py)
+  Method: node
+  Method: store
+  Method: is_leader
+  Method: get_leader
+  Method: wait_for_leader
+  Method: status
+  Method: destroy
+Class: ConsensusGateway (File: src/hanerma/orchestrator/consensus.py)
+  Method: put
+  Method: get
+  Method: delete
+  Method: batch_put
+  Method: cluster_status
+Class: HumanInTheLoop (File: src/hanerma/observability/human_in_loop.py)
+  Method: request_approval
+Class: TraceExporter (File: src/hanerma/observability/export_logger.py)
+  Method: log_run
+  Method: export_to_datadog
+Class: MetricsTracker (File: src/hanerma/observability/metrics.py)
+  Method: start_trace
+  Method: log_token_usage
+  Method: record_nested_correction
+  Method: record_tool_latency
+  Method: record_dag_execution
+  Method: record_dag_step
+  Method: record_healing
+  Method: record_routing
+  Method: record_raft_commit
+  Method: set_active_agents
+  Method: set_cluster_nodes
+  Method: end_trace
+Function: metrics_endpoint (File: src/hanerma/observability/metrics.py)
+Function: metrics_json (File: src/hanerma/observability/metrics.py)
+Function: start_metrics_server (File: src/hanerma/observability/metrics.py)
+Class: ExecutionController (File: src/hanerma/observability/viz_server.py)
+  Method: pause
+  Method: resume
+  Method: can_proceed
+  Method: is_paused
+  Method: inject_state
+  Method: drain_patches
+  Method: status
+Class: ExecutionRequest (File: src/hanerma/observability/viz_server.py)
+Class: AgentInitRequest (File: src/hanerma/observability/viz_server.py)
+Class: StateEditRequest (File: src/hanerma/observability/viz_server.py)
+Class: GraphNodeRequest (File: src/hanerma/observability/viz_server.py)
+Class: GraphEdgeRequest (File: src/hanerma/observability/viz_server.py)
+Function: start_viz (File: src/hanerma/observability/viz_server.py)
+Class: PerpetualMode (File: src/hanerma/perpetual/engine.py)
+Class: DriftError (File: src/hanerma/perpetual/engine.py)
+Class: SemanticAnchor (File: src/hanerma/perpetual/engine.py)
+  Method: verify_action
+Class: DriftMonitor (File: src/hanerma/perpetual/engine.py)
+  Method: check_drift
+Class: PerpetualEngine (File: src/hanerma/perpetual/engine.py)
+  Method: get_engine_status
+Class: ExtractionAgent (File: src/hanerma/reliability/fact_extractor.py)
+  Method: extract_claims
+  Method: verify_and_check
+Class: ContradictionError (File: src/hanerma/reliability/symbolic_reasoner.py)
+Class: LogicCompiler (File: src/hanerma/reliability/symbolic_reasoner.py)
+  Method: compile_and_check
+Class: SymbolicReasoner (File: src/hanerma/reliability/symbolic_reasoner.py)
+  Method: verify_agent_output
+Class: FailurePredictor (File: src/hanerma/reliability/risk_engine.py)
+  Method: analyze_prompt_complexity
+  Method: compute_risk
+Class: AdversarialHarness (File: src/hanerma/reliability/adversarial.py)
+  Method: generate_attack_batch
+  Method: run_stress_test
+Class: Settings (File: src/hanerma/core/config.py)
+Class: AgentConfig (File: src/hanerma/core/types.py)
+  Method: validate_name
+Class: OrchestrationResult (File: src/hanerma/core/types.py)
+Class: ChatRequest (File: src/hanerma/core/types.py)
+Class: AgentMessage (File: src/hanerma/core/types.py)
+Class: AgentRole (File: src/hanerma/core/types.py)
+Class: HANERMABaseException (File: src/hanerma/core/exceptions.py)
+Class: HallucinationDetectedError (File: src/hanerma/core/exceptions.py)
+Class: InfiniteLoopBoundError (File: src/hanerma/core/exceptions.py)
+Class: ConstraintInjector (File: src/hanerma/autoprompt/constraint_injector.py)
+  Method: generate_schema_prompt
+  Method: validate
+Class: AutoPromptEnhancer (File: src/hanerma/autoprompt/enhancer.py)
+Class: PromptTemplates (File: src/hanerma/autoprompt/templates.py)
+Class: LocalLLMAdapter (File: src/hanerma/models/local_llm.py)
+  Method: generate
+Class: ToolCallRequest (File: src/hanerma/models/constrained.py)
+Class: ReasoningStep (File: src/hanerma/models/constrained.py)
+Class: AgentOutput (File: src/hanerma/models/constrained.py)
+Class: MultiToolPlan (File: src/hanerma/models/constrained.py)
+Class: OutlinesBackend (File: src/hanerma/models/constrained.py)
+  Method: generate
+Class: InstructorBackend (File: src/hanerma/models/constrained.py)
+  Method: generate
+Class: OllamaConstrainedBackend (File: src/hanerma/models/constrained.py)
+  Method: generate
+Class: BackendType (File: src/hanerma/models/constrained.py)
+Class: GrammarShield (File: src/hanerma/models/constrained.py)
+  Method: generate
+  Method: generate_tool_call
+  Method: generate_reasoning
+  Method: backend_name
+Class: LocalModelRouter (File: src/hanerma/models/router.py)
+  Method: execute_with_fallback
+Class: OpenRouterAdapter (File: src/hanerma/models/cloud_llm.py)
+  Method: generate
+Class: HuggingFaceAdapter (File: src/hanerma/models/cloud_llm.py)
+  Method: generate
+Class: LocalModelDetector (File: src/hanerma/models/local_detector.py)
+  Method: detect_best_local_model
+  Method: get_auto_config
+Function: analyze_prompt_complexity (File: src/hanerma/routing/model_router.py)
+Class: LatencyMonitor (File: src/hanerma/routing/model_router.py)
+  Method: record
+  Method: avg_latency
+  Method: is_slow
+Class: BestModelRouter (File: src/hanerma/routing/model_router.py)
+  Method: route
+  Method: inject_style_into_request
+  Method: record_response
+  Method: inject_critic_node
+  Method: stats
+Class: VMType (File: src/hanerma/vm/controller.py)
+Class: VMStatus (File: src/hanerma/vm/controller.py)
+Class: VMExecution (File: src/hanerma/vm/controller.py)
+Class: RuntimeEnvironment (File: src/hanerma/vm/controller.py)
+Class: LocalRuntime (File: src/hanerma/vm/controller.py)
+Class: DockerRuntime (File: src/hanerma/vm/controller.py)
+Class: SSHRuntime (File: src/hanerma/vm/controller.py)
+Class: GitHubActionsRuntime (File: src/hanerma/vm/controller.py)
+Class: VMController (File: src/hanerma/vm/controller.py)
+  Method: get_available_runtimes
+  Method: get_runtime_status
+Class: ConnectionManager (File: src/hanerma/server/websockets.py)
+  Method: disconnect
+Class: SetupPersonaRequest (File: src/hanerma/server/main.py)
+Class: ChatRequest (File: src/hanerma/server/main.py)
+Function: cli (File: src/hanerma/server/main.py)
+Function: get_orchestrator (File: src/hanerma/server/routes.py)
+Function: get_registry (File: src/hanerma/server/routes.py)
+Class: LatencyShield (File: src/hanerma/optimization/latency_shield.py)
+  Method: speculative_decode
+  Method: save_kv_cache
+  Method: load_kv_cache
+  Method: get_memory_usage
+Class: ProactiveOptimizer (File: src/hanerma/optimization/cost_manager.py)
+  Method: in_flight_context_pruner
+  Method: parallel_verification_batching
+Class: ParallelASTAnalyzer (File: src/hanerma/optimization/ast_analyzer.py)
+  Method: analyze
+  Method: visit_Assign
+  Method: visit_Expr
+Function: detect_parallel_regions (File: src/hanerma/optimization/ast_analyzer.py)
+Class: HealingAction (File: src/hanerma/interface/empathy.py)
+Class: Z3HealingPatch (File: src/hanerma/interface/empathy.py)
+Class: HealingResult (File: src/hanerma/interface/empathy.py)
+Class: SupervisorHealer (File: src/hanerma/interface/empathy.py)
+  Method: heal
+  Method: heal_offline
+Function: friendly_fail (File: src/hanerma/interface/empathy.py)
+Function: quick_flow (File: src/hanerma/interface/minimalist.py)
+Function: create_agent (File: src/hanerma/interface/minimalist.py)
+Class: VoiceHandler (File: src/hanerma/interface/voice.py)
+  Method: set_callback
+  Method: transcribe_audio_file
+  Method: start_listening
+  Method: stop_listening
+Class: VisionRouter (File: src/hanerma/interface/voice.py)
+  Method: observe
+  Method: inject_into_dag
+Function: transcribe_audio (File: src/hanerma/interface/voice.py)
+Function: analyze_image (File: src/hanerma/interface/voice.py)
+Function: start_voice_listening (File: src/hanerma/interface/voice.py)
+Function: voice_callback (File: src/hanerma/interface/voice.py)
+Function: audio_callback (File: src/hanerma/interface/voice.py)
+Class: NestedVerifier (File: src/hanerma/reasoning/deep2_nested.py)
+  Method: cross_check
+Class: AtomicGuard (File: src/hanerma/reasoning/deep1_atomic.py)
+  Method: verify
+Class: Z3ResultType (File: src/hanerma/reasoning/z3_solver.py)
+Class: Z3Constraint (File: src/hanerma/reasoning/z3_solver.py)
+Class: Z3Model (File: src/hanerma/reasoning/z3_solver.py)
+  Method: get_assignment
+  Method: is_consistent_with
+Class: Z3Solver (File: src/hanerma/reasoning/z3_solver.py)
+  Method: add_constraint
+  Method: add_variable
+  Method: check
+  Method: get_model
+  Method: verify_dag
+  Method: verify_transition
+Class: ExternalReasoner (File: src/hanerma/reasoning/deep3_external.py)
+  Method: execute_tool_call
+Class: HyperTokenCompressor (File: src/hanerma/memory/hypertoken.py)
+  Method: compress
+  Method: decompress
+Class: HyperIndex (File: src/hanerma/memory/hypertoken.py)
+  Method: add
+  Method: get
+Class: HCMSManager (File: src/hanerma/memory/manager.py)
+  Method: inject_user_style_into_prompt
+  Method: get_user_style_summary
+  Method: clear_speculative_cache
+  Method: log_failure_pattern
+  Method: store_atomic_memory
+  Method: retrieve_relevant_context
+  Method: count_total_tokens
+Class: HCMS (File: src/hanerma/memory/core.py)
+Class: MemoryTieringManager (File: src/hanerma/memory/tiering.py)
+  Method: add_event
+  Method: get_active_context
+  Method: recall_relevant
+Class: FaissAdapter (File: src/hanerma/memory/adapters/faiss_adapter.py)
+Class: Neo4jAdapter (File: src/hanerma/memory/adapters/neo4j_adapter.py)
+Class: BaseHyperTokenizer (File: src/hanerma/memory/compression/base_tokenizer.py)
+  Method: encode_and_compress
+  Method: decode
+  Method: get_compression_ratio
+  Method: build_vocab
+  Method: get_stats
+  Method: merge_vocab
+  Method: train_bpe
+  Method: tokenize_bpe
+  Method: count_tokens
+  Method: embed
+Class: SemanticBlock (File: src/hanerma/memory/compression/xerv_crayon_ext.py)
+Class: SemanticCompressor (File: src/hanerma/memory/compression/xerv_crayon_ext.py)
+Class: XervCrayonAdapter (File: src/hanerma/memory/compression/xerv_crayon_ext.py)
+  Method: encode_and_compress
+  Method: decode
+  Method: count_tokens
+  Method: compress_context
+  Method: get_compression_ratio
+  Method: embed
+  Method: get_efficiency_report
+  Method: vocab_size
+Class: ChunkingEngine (File: src/hanerma/memory/compression/chunking_engine.py)
+  Method: predictive_skip
+  Method: compute_delta
+  Method: split
+Class: RedisCache (File: src/hanerma/memory/providers/redis_cache.py)
+  Method: set_session_state
+  Method: get_session_state
+  Method: clear_session
+Class: FaissVectorStore (File: src/hanerma/memory/providers/faiss_vector.py)
+Class: Neo4jGraphStore (File: src/hanerma/memory/providers/neo4j_graph.py)
+  Method: add_node
+  Method: find_node
+  Method: close
+Class: RaftMessageType (File: src/hanerma/state/raft_consensus.py)
+Class: RaftNodeState (File: src/hanerma/state/raft_consensus.py)
+Class: LogEntry (File: src/hanerma/state/raft_consensus.py)
+Class: RaftMessage (File: src/hanerma/state/raft_consensus.py)
+Class: ConsensusResult (File: src/hanerma/state/raft_consensus.py)
+Class: RaftConsensus (File: src/hanerma/state/raft_consensus.py)
+  Method: propose_operation
+  Method: query_distributed
+  Method: get_current_timestamp
+  Method: get_node_count
+  Method: get_current_leader
+  Method: get_current_term
+  Method: get_commit_index
+  Method: is_healthy
+Class: HistoryEntry (File: src/hanerma/state/models.py)
+Class: SharedMemory (File: src/hanerma/state/models.py)
+Class: HANERMAState (File: src/hanerma/state/models.py)
+  Method: compute_hash
+  Method: from_dict
+  Method: to_dict
+Class: TransactionalEventBus (File: src/hanerma/state/transactional_bus.py)
+  Method: record_step
+  Method: recover_trace
+  Method: get_last_valid_state
+  Method: get_latest_trace_id
+Function: detect_local_backends (File: src/hanerma/tools/local_detector.py)
+Function: get_default_model (File: src/hanerma/tools/local_detector.py)
+Function: is_ollama_running (File: src/hanerma/tools/local_detector.py)
+Function: list_ollama_models (File: src/hanerma/tools/local_detector.py)
+Class: NativeCodeSandbox (File: src/hanerma/tools/code_sandbox.py)
+  Method: execute_code
+  Method: clear_state
+Class: Tool (File: src/hanerma/tools/registry.py)
+  Method: schema
+  Method: validate
+  Method: call
+Function: tool (File: src/hanerma/tools/registry.py)
+Class: ToolRegistry (File: src/hanerma/tools/registry.py)
+  Method: register_tool
+  Method: register
+  Method: get_tool
+  Method: list_available_tools
+  Method: get_all_schemas
+Function: decorator (File: src/hanerma/tools/registry.py)
+Class: SafeWebSearch (File: src/hanerma/tools/web_search.py)
+Class: CustomAPILoader (File: src/hanerma/tools/custom_api_loader.py)
