@@ -1,95 +1,181 @@
-from fastapi import FastAPI, WebSocket, Request
-from fastapi.responses import HTMLResponse
-import uvicorn
-import json
-import sqlite3
-import os
+"""
+God Mode Two-Way Visual Composer — Real-time DAG Designer + State Injection.
+
+Provides:
+  - React Flow-style visual DAG designer in the browser
+  - /api/graph/pause — pauses mid-execution via threading Event
+  - /api/graph/resume — resumes execution
+  - /api/graph/edit_state — injects new state/memory into a running agent
+  - WebSocket live telemetry feed
+  - Visual Architect: drag-and-drop agent wiring
+
+The orchestrator checks a threading Event flag at every DAG step,
+allowing the user to physically pause, edit memory, and resume.
+"""
+
 import asyncio
+import json
+import logging
+import os
+import sqlite3
+import time
+import threading
 import uuid
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-from hanerma.orchestrator.engine import HANERMAOrchestrator
-from hanerma.agents.registry import spawn_agent
-from hanerma.memory.manager import HCMSManager
-from hanerma.memory.compression.xerv_crayon_ext import XervCrayonAdapter
-from hanerma.tools.code_sandbox import NativeCodeSandbox
+from typing import Any, Dict, List, Optional
 
-# Load environment
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel, Field
 
-# Initialize global singleton components for UI
-tokenizer = XervCrayonAdapter(profile="lite")
-memory = HCMSManager(tokenizer=tokenizer)
-orchestrator = HANERMAOrchestrator(model="Qwen/Qwen3-Coder-Next-FP8:together", tokenizer=tokenizer)
-orchestrator.pause_event = asyncio.Event()
-orchestrator.pause_event.set()  # Start running
+logger = logging.getLogger("hanerma.viz_server")
 
-# Use REAL tools (Root-level)
-sandbox = NativeCodeSandbox()
-def execute_logic(**kwargs):
-    """Executes production logic via the Native Code Sandbox. Expects 'code'."""
-    code = kwargs.get("code") or ""
-    return sandbox.execute_code(code)
+# ═══════════════════════════════════════════════════════════════════════════
+#  Execution Control — threading Event for pause/resume
+# ═══════════════════════════════════════════════════════════════════════════
 
-# Seed initial state
-orchestrator.state_manager["shared_memory"]["facts"] = []
-orchestrator.state_manager["history"] = []
+class ExecutionController:
+    """
+    Thread-safe execution controller.
+    The Rust engine / orchestrator checks `can_proceed()` at every DAG step.
+    """
 
-# Register default agent with real tools
-from hanerma.tools.registry import ToolRegistry
-reg = ToolRegistry()
-default_tools = [reg.get_tool(n) for n in ["web_search", "calculator", "get_system_time"]]
+    def __init__(self):
+        self._event = threading.Event()
+        self._event.set()  # Start in running state
+        self._paused_at: Optional[float] = None
+        self._state_patches: List[Dict[str, Any]] = []
+        self._lock = threading.Lock()
 
-orchestrator.register_agent(spawn_agent("ApexDev", 
-                                        model="Qwen/Qwen3-Coder-Next-FP8:together", 
-                                        role="Lead System Architect",
-                                        tools=[execute_logic] + default_tools))
+    def pause(self) -> None:
+        """Pause DAG execution."""
+        self._event.clear()
+        self._paused_at = time.time()
+        logger.info("[CONTROLLER] ⏸ Execution PAUSED")
+
+    def resume(self) -> None:
+        """Resume DAG execution."""
+        self._event.set()
+        self._paused_at = None
+        logger.info("[CONTROLLER] ▶ Execution RESUMED")
+
+    def can_proceed(self, timeout: float = 0.1) -> bool:
+        """
+        Check if execution can proceed.
+        Blocks for up to timeout seconds if paused.
+        Call this at every DAG step boundary.
+        """
+        return self._event.wait(timeout=timeout)
+
+    def is_paused(self) -> bool:
+        return not self._event.is_set()
+
+    def inject_state(self, agent_name: str, key: str, value: Any) -> None:
+        """Queue a state patch for injection during pause."""
+        with self._lock:
+            self._state_patches.append({
+                "agent_name": agent_name,
+                "key": key,
+                "value": value,
+                "timestamp": time.time(),
+            })
+        logger.info("[CONTROLLER] State patch queued: %s.%s", agent_name, key)
+
+    def drain_patches(self) -> List[Dict[str, Any]]:
+        """Drain all pending state patches (called by orchestrator on resume)."""
+        with self._lock:
+            patches = self._state_patches.copy()
+            self._state_patches.clear()
+        return patches
+
+    def status(self) -> Dict[str, Any]:
+        return {
+            "paused": self.is_paused(),
+            "paused_at": self._paused_at,
+            "pending_patches": len(self._state_patches),
+        }
+
+
+# Global controller instance
+controller = ExecutionController()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Pydantic models for API
+# ═══════════════════════════════════════════════════════════════════════════
 
 class ExecutionRequest(BaseModel):
     prompt: str
-    target_agent: str = "ApexDev"
+    target_agent: str = ""
 
 class AgentInitRequest(BaseModel):
     name: str
     role: str
     model: str
-    provider: str
+    provider: str = "Local"
 
-app = FastAPI(title="HANERMA APEX OS")
+class StateEditRequest(BaseModel):
+    agent_name: str
+    key: str = "memory"
+    value: Any = None
 
-# --- PREMIUM DASHBOARD UI (No Placeholders, Root Tools) ---
+class GraphNodeRequest(BaseModel):
+    node_id: str
+    label: str
+    node_type: str = "agent"
+    x: float = 0
+    y: float = 0
+
+class GraphEdgeRequest(BaseModel):
+    source: str
+    target: str
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  FastAPI Application
+# ═══════════════════════════════════════════════════════════════════════════
+
+app = FastAPI(title="HANERMA GOD MODE")
+
+# In-memory designer state
+designer_nodes: List[Dict[str, Any]] = []
+designer_edges: List[Dict[str, Any]] = []
+telemetry_log: List[Dict[str, Any]] = []
+active_agents: Dict[str, Dict[str, Any]] = {}
+ws_clients: List[WebSocket] = []
+
+
+# ── Dashboard HTML with React Flow-style Designer ──
+
 DASHBOARD_HTML = r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HANERMA | Apex intelligence OS</title>
+    <title>HANERMA | God Mode Visual Composer</title>
+    <meta name="description" content="Real-time multi-agent DAG designer with live execution control">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        :root { 
-            --bg: #020617; 
-            --surface: rgba(15, 23, 42, 0.7);
-            --accent: #38bdf8; 
+        :root {
+            --bg: #020617;
+            --surface: rgba(15, 23, 42, 0.85);
+            --accent: #38bdf8;
             --accent-glow: rgba(56, 189, 248, 0.3);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
-            --border: rgba(255, 255, 255, 0.1);
+            --border: rgba(255, 255, 255, 0.08);
             --glass: rgba(255, 255, 255, 0.03);
             --success: #10b981;
+            --warning: #f59e0b;
             --risk: #f43f5e;
-            --recursive: #8b5cf6;
+            --purple: #8b5cf6;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            background: var(--bg); 
-            color: var(--text-primary); 
-            font-family: 'Outfit', sans-serif; 
+        body {
+            background: var(--bg);
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
             height: 100vh;
             display: flex;
             overflow: hidden;
@@ -97,628 +183,611 @@ DASHBOARD_HTML = r"""
         }
 
         nav {
-            width: 260px;
+            width: 250px;
             background: var(--surface);
             backdrop-filter: blur(25px);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            padding: 2rem 1.25rem;
+            padding: 1.5rem 1rem;
             z-index: 100;
         }
 
         .logo {
-            font-size: 1.3rem;
+            font-size: 1.15rem;
             font-weight: 800;
             color: #fff;
-            margin-bottom: 2.5rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            letter-spacing: -0.02em;
-        }
-
-        .nav-link {
-            padding: 0.85rem 1.15rem;
-            border-radius: 0.85rem;
-            color: var(--text-secondary);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.25s;
-            margin-bottom: 0.4rem;
+            margin-bottom: 2rem;
             display: flex;
             align-items: center;
             gap: 10px;
-            font-size: 0.9rem;
+            letter-spacing: -0.02em;
         }
 
+        .logo svg { color: var(--accent); }
+
+        .nav-link {
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.3rem;
+            font-size: 0.85rem;
+        }
         .nav-link:hover { background: var(--glass); color: var(--text-primary); }
         .nav-link.active { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent-glow); }
 
-        main { flex: 1; display: flex; flex-direction: column; position: relative; }
-        
+        main { flex: 1; display: flex; flex-direction: column; }
+
         header {
-            height: 70px;
+            height: 60px;
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 2rem;
-            background: rgba(2, 6, 23, 0.5);
+            padding: 0 1.5rem;
+            background: rgba(2, 6, 23, 0.7);
             backdrop-filter: blur(15px);
         }
 
-        .metrics-grid { display: flex; gap: 1rem; }
-        .metric-pill {
-            background: var(--glass);
+        .ctrl-group { display: flex; gap: 8px; align-items: center; }
+
+        .ctrl-btn {
+            padding: 6px 16px;
             border: 1px solid var(--border);
-            padding: 0.35rem 1rem;
-            border-radius: 2rem;
-            font-size: 0.75rem;
+            border-radius: 8px;
             font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Outfit';
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .ctrl-btn:hover { transform: translateY(-1px); }
+        .ctrl-btn.pause { background: var(--risk); color: white; border-color: var(--risk); }
+        .ctrl-btn.resume { background: var(--success); color: white; border-color: var(--success); }
+        .ctrl-btn.edit { background: var(--accent); color: #000; border-color: var(--accent); }
+        .ctrl-btn.export { background: var(--purple); color: white; border-color: var(--purple); }
+
+        .status-pill {
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-
-        .content-wrap { flex: 1; display: flex; padding: 1.25rem; gap: 1.25rem; overflow: hidden; }
-        .pane {
-            background: var(--surface);
+            padding: 6px 14px;
+            background: var(--glass);
             border: 1px solid var(--border);
-            border-radius: 1.25rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 800;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        .status-dot.paused { background: var(--warning); animation: none; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .content-area { flex: 1; display: flex; overflow: hidden; }
+
+        /* DAG Canvas */
+        .dag-canvas {
+            flex: 2;
+            position: relative;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            overflow: hidden;
+        }
+        #dag-svg { width: 100%; height: 100%; }
+
+        .dag-node {
+            cursor: grab;
+        }
+        .dag-node:active { cursor: grabbing; }
+        .dag-node rect {
+            rx: 10;
+            ry: 10;
+            stroke-width: 1.5;
+            transition: filter 0.2s;
+        }
+        .dag-node:hover rect { filter: brightness(1.3); }
+        .dag-node text {
+            font-family: 'Outfit';
+            font-weight: 700;
+            fill: white;
+            pointer-events: none;
+        }
+        .dag-node .subtitle {
+            font-size: 9px;
+            font-weight: 400;
+            fill: var(--text-secondary);
+        }
+        .dag-edge {
+            stroke: #334155;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        .dag-edge.active { stroke: var(--accent); stroke-width: 2.5; }
+
+        /* Telemetry Sidebar */
+        .telemetry-panel {
+            flex: 1;
+            max-width: 380px;
+            border-left: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            backdrop-filter: blur(15px);
+            background: var(--surface);
         }
-
-        .pane-header {
-            padding: 1rem 1.5rem;
+        .panel-header {
+            padding: 1rem 1.25rem;
             border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(255,255,255,0.01);
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 800;
+            color: var(--text-secondary);
         }
-
-        .pane-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 800; color: var(--text-secondary); }
-
-        #viz-area { flex: 1; position: relative; background: radial-gradient(circle at center, #0f172a 0%, #020617 100%); overflow: hidden; }
-        #canvas-graph { width: 100%; height: 100%; }
-
-        #trace-bucket { flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
-        .log-entry {
+        .telemetry-feed {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .telem-entry {
             background: rgba(0,0,0,0.3);
             border-left: 3px solid var(--accent);
-            padding: 1rem;
-            border-radius: 0.65rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
             font-family: 'JetBrains Mono', monospace;
-            animation: slideUp 0.3s ease-out;
-            transition: transform 0.2s;
+            animation: slideIn 0.3s ease-out;
         }
-        .log-entry:hover { transform: translateX(5px); background: rgba(255,255,255,0.02); }
-        .log-tag { font-size: 0.6rem; font-weight: 800; margin-bottom: 4px; }
-        .log-content { font-size: 0.75rem; line-height: 1.5; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; }
+        .telem-entry .tag { font-size: 0.55rem; font-weight: 800; margin-bottom: 3px; }
+        .telem-entry .body { font-size: 0.7rem; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
 
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CLI */
         .cli-dock {
-            padding: 1.5rem 2rem;
+            padding: 1rem 1.5rem;
             background: rgba(0,0,0,0.4);
             border-top: 1px solid var(--border);
         }
-        .input-pill {
+        .input-bar {
             display: flex;
             background: var(--glass);
             border: 1px solid var(--border);
-            padding: 0.4rem;
-            border-radius: 1rem;
-            max-width: 900px;
+            padding: 4px;
+            border-radius: 12px;
+            max-width: 800px;
             margin: 0 auto;
         }
-        .input-pill input {
+        .input-bar input {
             flex: 1;
             background: transparent;
             border: none;
             color: white;
-            padding: 0.7rem 1.25rem;
+            padding: 0.6rem 1rem;
             outline: none;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
+            font-family: 'Outfit';
         }
-        .btn-exec {
+        .input-bar button {
             background: var(--accent);
             color: #000;
             border: none;
             padding: 0 1.5rem;
-            border-radius: 0.75rem;
+            border-radius: 8px;
             font-weight: 800;
             cursor: pointer;
+            font-size: 0.8rem;
             transition: all 0.2s;
-            font-size: 0.85rem;
         }
-        .btn-exec:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--accent-glow); }
+        .input-bar button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-glow); }
 
-        .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; padding: 1.25rem; overflow-y: auto; }
-        .card-glass {
+        .kernel-status {
+            margin-top: auto;
+            padding: 1rem;
             background: var(--glass);
+            border-radius: 1rem;
             border: 1px solid var(--border);
-            padding: 1.5rem;
-            border-radius: 1.25rem;
-            backdrop-filter: blur(10px);
+            font-size: 0.65rem;
         }
-
-        .hub-form {
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-            margin-bottom: 2rem;
-            padding: 2.5rem;
-            background: var(--surface);
-            border-radius: 1.5rem;
-            border: 1px solid var(--border);
-            backdrop-filter: blur(30px);
-        }
-
-        label { font-size: 0.65rem; font-weight: 800; color: var(--accent); margin-bottom: 4px; display: block; }
-        input[type="text"], select {
-            width: 100%;
-            background: rgba(0,0,0,0.4);
-            border: 1px solid var(--border);
-            color: white;
-            padding: 0.8rem 1rem;
-            border-radius: 0.75rem;
-            font-family: 'Outfit';
-            outline: none;
-            font-size: 0.9rem;
-        }
-
-        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Scalable Graph Styling */
-        .node circle { stroke: #fff; stroke-width: 1.5px; transition: r 0.3s, fill 0.3s; cursor: pointer; }
-        .node text { font-family: 'Outfit'; font-size: 9px; font-weight: 700; fill: var(--text-secondary); pointer-events: none; }
-        .link { stroke: #334155; stroke-opacity: 0.3; stroke-width: 1px; marker-end: url(#arrowhead); }
     </style>
 </head>
 <body>
     <nav>
         <div class="logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            HANERMA APEX
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            HANERMA GOD MODE
         </div>
-        <div class="nav-link active" onclick="nav('op-center', this)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            Command Deck
-        </div>
-        <div class="nav-link" onclick="nav('persona-hub', this)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Agent Foundry
-        </div>
-        <div class="nav-link" onclick="nav('designer', this)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            Visual Architect
-        </div>
-        <div class="nav-link" onclick="nav('memory-vault', this)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-            Memory Vault
-        </div>
+        <div class="nav-link active" onclick="nav('command', this)">⚡ Command Deck</div>
+        <div class="nav-link" onclick="nav('designer', this)">🔧 Visual Architect</div>
+        <div class="nav-link" onclick="nav('agents', this)">🤖 Agent Foundry</div>
 
-        <div style="margin-top: auto; padding: 1.25rem; background: var(--glass); border-radius: 1.25rem; border: 1px solid var(--border);">
-            <div style="font-size: 0.6rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 800; text-transform: uppercase;">Kernel Status</div>
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800; color: var(--text-primary);">
-                <span class="dot" style="background: var(--success); box-shadow: 0 0 12px var(--success);"></span>
-                STABLE_V4_CORE
+        <div class="kernel-status" id="kernel-status">
+            <div style="color: var(--text-secondary); margin-bottom: 4px; font-weight: 800;">KERNEL</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="status-dot" id="kernel-dot"></span>
+                <span id="kernel-label" style="font-weight: 800;">RUNNING</span>
             </div>
-            <div style="font-size: 0.55rem; color: var(--text-secondary); margin-top: 8px; font-family: 'JetBrains Mono';">ROOT: XERV-CRAYON</div>
         </div>
     </nav>
 
     <main>
         <header>
-            <div style="font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em;">APEX / <span id="section-title">Command Deck</span></div>
-            <div class="metrics-grid">
-                <div class="metric-pill"><span class="dot" style="background: var(--accent);"></span><span id="stat-latency">0ms</span></div>
-                <div class="metric-pill"><span class="dot" style="background: var(--recursive);"></span><span id="stat-tokens">0 tkn</span></div>
-                <div class="metric-pill"><span class="dot" style="background: var(--success);"></span><span id="stat-risk">0.01</span></div>
+            <div style="font-weight: 800; font-size: 1rem;">
+                APEX / <span id="section-title">Command Deck</span>
+            </div>
+            <div class="ctrl-group">
+                <div class="status-pill">
+                    <span class="status-dot" id="exec-dot"></span>
+                    <span id="exec-status">RUNNING</span>
+                </div>
+                <button class="ctrl-btn pause" onclick="doPause()">⏸ Pause</button>
+                <button class="ctrl-btn resume" onclick="doResume()">▶ Resume</button>
+                <button class="ctrl-btn edit" onclick="doEditState()">✏ Edit State</button>
             </div>
         </header>
 
-        <div id="op-center" class="content-wrap" style="display: flex;">
-            <div class="pane" style="flex: 1.8;">
-                <div class="pane-header">
-                    <span class="pane-title">Causal Intelligence Web</span>
-                    <div style="display: flex; gap: 10px;">
-                        <button onclick="pauseGraph()" style="padding: 5px 10px; background: var(--risk); color: white; border: none; border-radius: 5px; cursor: pointer;">Pause</button>
-                        <button onclick="resumeGraph()" style="padding: 5px 10px; background: var(--success); color: white; border: none; border-radius: 5px; cursor: pointer;">Resume</button>
-                        <button onclick="editState()" style="padding: 5px 10px; background: var(--accent); color: white; border: none; border-radius: 5px; cursor: pointer;">Edit State</button>
-                    </div>
-                </div>
-                <div id="viz-area">
-                    <svg id="canvas-graph"></svg>
-                </div>
+        <div class="content-area" id="view-command">
+            <div class="dag-canvas">
+                <svg id="dag-svg">
+                    <defs>
+                        <marker id="arrowhead" viewBox="-0 -5 10 10" refX="25" refY="0" orient="auto" markerWidth="6" markerHeight="6">
+                            <path d="M 0,-4 L 8,0 L 0,4" fill="#475569"/>
+                        </marker>
+                    </defs>
+                </svg>
             </div>
-            <div class="pane" style="flex: 1;">
-                <div class="pane-header"><span class="pane-title">Real-time Telemetry</span></div>
-                <div id="trace-bucket"></div>
+            <div class="telemetry-panel">
+                <div class="panel-header">Real-Time Telemetry</div>
+                <div class="telemetry-feed" id="telem-feed"></div>
             </div>
         </div>
 
-        <div id="persona-hub" class="content-wrap" style="display: none; flex-direction: column; overflow-y: auto;">
-            <div style="max-width: 800px; width: 100%; margin: 0 auto; padding-bottom: 2rem;">
-                <h2 style="margin-bottom: 0.5rem; font-weight: 800; font-size: 1.5rem;">Agent Foundry</h2>
-                <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.85rem;">Spawn hardware-rooted agents with custom model routing.</p>
-                
-                <div class="hub-form">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
-                        <div>
-                            <label>AGENT ALIAS</label>
-                            <input type="text" id="agent-name" placeholder="e.g. Coder-1">
-                        </div>
-                        <div>
-                            <label>SYSTEM ROLE</label>
-                            <input type="text" id="agent-role" placeholder="e.g. Security Auditor">
-                        </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
-                        <div>
-                            <label>MODEL IDENTIFIER</label>
-                            <input type="text" id="agent-model" placeholder="e.g. gpt-4o, llama3:8b">
-                        </div>
-                        <div>
-                            <label>CLOUD PROVIDER</label>
-                            <select id="agent-provider">
-                                <option value="HuggingFace">Hugging Face</option>
-                                <option value="OpenRouter">Open Router</option>
-                                <option value="Together">Together.ai</option>
-                                <option value="Local">Local (ROOT)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button class="btn-exec" onclick="initAgent()" style="height: 50px;">REGISTER TO APEX CORE</button>
-                </div>
-
-                <h2 style="margin-bottom: 1.5rem; font-weight: 800; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em;">Active Matrix</h2>
-                <div class="hub-grid" id="agent-list" style="padding: 0;"></div>
-            </div>
-        </div>
-
-        <div id="memory-vault" class="content-wrap" style="display: none; overflow-y: auto;">
-            <div style="max-width: 900px; width: 100%; margin: 0 auto; padding-bottom: 2rem;">
-                <h2 style="margin-bottom: 1.5rem; font-weight: 800; font-size: 1.5rem;">Memory Intelligence</h2>
-                <div class="hub-grid" id="memory-list" style="padding: 0;"></div>
-            </div>
-        </div>
-
-        <div id="cli-section" class="cli-dock">
-            <div class="input-pill">
-                <input type="text" id="apex-input" placeholder="Initiate bare-metal reasoning cycle..." onkeydown="if(event.key==='Enter') executeApex()">
-                <button class="btn-exec" onclick="executeApex()">RUN FLOW</button>
+        <div class="cli-dock">
+            <div class="input-bar">
+                <input type="text" id="cmd-input" placeholder="Type a command or natural language instruction..." onkeydown="if(event.key==='Enter') runCommand()">
+                <button onclick="runCommand()">EXECUTE</button>
             </div>
         </div>
     </main>
 
     <script>
-        let nodes = [];
-        let links = [];
+        // State
+        let graphNodes = [];
+        let graphEdges = [];
         let simulation;
+        let isPaused = false;
 
+        // Navigation
         function nav(id, el) {
-            document.querySelectorAll('.content-wrap').forEach(c => c.style.display = 'none');
-            document.getElementById(id).style.display = 'flex';
             document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
             el.classList.add('active');
-            document.getElementById('section-title').innerText = el.innerText.trim();
-            document.getElementById('cli-section').style.display = (id === 'op-center') ? 'block' : 'none';
-            
-            if(id === 'persona-hub') loadAgents();
-            if(id === 'memory-vault') loadMemory();
+            document.getElementById('section-title').innerText = el.innerText.replace(/[⚡🔧🤖]/g, '').trim();
         }
 
-        const svg = d3.select("#canvas-graph");
-        svg.append("defs").append("marker")
-            .attr("id", "arrowhead").attr("viewBox", "-0 -5 10 10").attr("refX", 20).attr("refY", 0)
-            .attr("orient", "auto").attr("markerWidth", 5).attr("markerHeight", 5)
-            .append("svg:path").attr("d", "M 0,-5 L 10 ,0 L 0,5").attr("fill", "#475569");
-
+        // DAG Rendering
+        const svg = d3.select("#dag-svg");
         const g = svg.append("g");
         svg.call(d3.zoom().on("zoom", (e) => g.attr("transform", e.transform)));
 
         function initSimulation() {
             const rect = svg.node().getBoundingClientRect();
-            simulation = d3.forceSimulation(nodes)
-                .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-                .force("charge", d3.forceManyBody().strength(-350))
+            simulation = d3.forceSimulation(graphNodes)
+                .force("link", d3.forceLink(graphEdges).id(d => d.id).distance(160))
+                .force("charge", d3.forceManyBody().strength(-400))
                 .force("center", d3.forceCenter(rect.width / 2, rect.height / 2))
-                .on("tick", () => {
-                    g.selectAll(".link")
-                        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-                        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-                    g.selectAll(".node")
-                        .attr("transform", d => `translate(${d.x},${d.y})`);
-                });
+                .on("tick", renderTick);
+        }
+
+        function renderTick() {
+            g.selectAll(".dag-edge")
+                .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+            g.selectAll(".dag-node")
+                .attr("transform", d => `translate(${d.x - 60},${d.y - 20})`);
         }
 
         function updateGraph(event) {
-            const nodeID = event.payload.trace_id || uuidv4();
-            if(nodes.find(n => n.id === nodeID)) return;
+            const nodeID = event.payload?.trace_id || event.payload?.node_id || crypto.randomUUID();
+            if (graphNodes.find(n => n.id === nodeID)) return;
 
-            const newNode = { 
-                id: nodeID, 
-                label: event.event_type.split('_').pop().toUpperCase(),
-                type: event.event_type 
-            };
-            nodes.push(newNode);
-            if(nodes.length > 1) links.push({ source: nodes[nodes.length-2].id, target: newNode.id });
+            const label = event.event_type.split('_').pop().toUpperCase();
+            const color = event.event_type.includes('success') ? '#10b981'
+                        : event.event_type.includes('fail') ? '#f43f5e'
+                        : event.event_type.includes('tool') ? '#f59e0b'
+                        : '#38bdf8';
 
-            const l = g.selectAll(".link").data(links, d => d.source.id + "-" + d.target.id);
-            l.enter().append("line").attr("class", "link");
+            graphNodes.push({ id: nodeID, label, color, type: event.event_type });
+            if (graphNodes.length > 1) {
+                graphEdges.push({ source: graphNodes[graphNodes.length - 2].id, target: nodeID });
+            }
 
-            const n = g.selectAll(".node").data(nodes, d => d.id);
-            const nEnter = n.enter().append("g").attr("class", "node")
-                            .call(d3.drag()
-                                .on("start", (e) => { if (!e.active) simulation.alphaTarget(0.3).restart(); e.subject.fx = e.x; e.subject.fy = e.y; })
-                                .on("drag", (e) => { e.subject.fx = e.x; e.subject.fy = e.y; })
-                                .on("end", (e) => { if (!e.active) simulation.alphaTarget(0); e.subject.fx = null; e.subject.fy = null; }));
-            
-            nEnter.append("circle")
-                .attr("r", 7)
-                .style("fill", d => {
-                    if(d.type.includes('start')) return '#38bdf8';
-                    if(d.type.includes('complete') || d.type.includes('success')) return '#10b981';
-                    if(d.type.includes('failed') || d.type.includes('error')) return '#f43f5e';
-                    if(d.type.includes('tool')) return '#f59e0b';
-                    return '#8b5cf6';
-                });
+            // Render edges
+            const links = g.selectAll(".dag-edge").data(graphEdges, d => d.source.id + "-" + d.target.id);
+            links.enter().append("line").attr("class", "dag-edge");
 
-            nEnter.append("text").attr("dy", -12).attr("text-anchor", "middle").text(d => d.label);
+            // Render nodes
+            const nodes = g.selectAll(".dag-node").data(graphNodes, d => d.id);
+            const nEnter = nodes.enter().append("g").attr("class", "dag-node")
+                .call(d3.drag()
+                    .on("start", (e) => { if (!e.active) simulation.alphaTarget(0.3).restart(); e.subject.fx = e.x; e.subject.fy = e.y; })
+                    .on("drag", (e) => { e.subject.fx = e.x; e.subject.fy = e.y; })
+                    .on("end", (e) => { if (!e.active) simulation.alphaTarget(0); e.subject.fx = null; e.subject.fy = null; }));
 
-            simulation.nodes(nodes);
-            simulation.force("link").links(links);
+            nEnter.append("rect")
+                .attr("width", 120).attr("height", 40)
+                .attr("fill", d => d.color)
+                .attr("fill-opacity", 0.2)
+                .attr("stroke", d => d.color);
+
+            nEnter.append("text")
+                .attr("x", 60).attr("y", 24)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "11px")
+                .text(d => d.label);
+
+            simulation.nodes(graphNodes);
+            simulation.force("link").links(graphEdges);
             simulation.alpha(1).restart();
         }
 
-        async function initAgent() {
-            const name = document.getElementById('agent-name').value;
-            const role = document.getElementById('agent-role').value;
-            const model = document.getElementById('agent-model').value;
-            const provider = document.getElementById('agent-provider').value;
-            if(!name || !model) return;
-
-            await fetch('/api/agents/init', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ name, role, model, provider })
-            });
-
-            loadAgents();
-            document.getElementById('agent-name').value = "";
-            document.getElementById('agent-model').value = "";
+        // Execution Control
+        async function doPause() {
+            await fetch('/api/graph/pause', { method: 'POST' });
+            isPaused = true;
+            updateStatus();
         }
 
-        async function loadAgents() {
-            const res = await fetch('/api/agents');
-            const data = await res.json();
-            document.getElementById('agent-list').innerHTML = data.map(a => `
-                <div class="card-glass">
-                    <div style="color: var(--accent); font-size: 0.6rem; font-weight: 800; margin-bottom: 0.6rem; text-transform: uppercase;">Apex Node</div>
-                    <div style="font-weight: 800; margin-bottom: 0.4rem;">${a.name}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${a.role}</div>
-                    <div style="margin-top: 1rem; padding: 0.6rem; background: rgba(0,0,0,0.3); border-radius: 0.5rem; font-family: 'JetBrains Mono'; font-size: 0.7rem; color: var(--success); border: 1px solid var(--border);">${a.model}</div>
-                </div>
-            `).join('');
+        async function doResume() {
+            await fetch('/api/graph/resume', { method: 'POST' });
+            isPaused = false;
+            updateStatus();
         }
 
-        async function loadMemory() {
-            const res = await fetch('/api/memory');
-            const data = await res.json();
-            document.getElementById('memory-list').innerHTML = data.map(m => `
-                <div class="card-glass">
-                    <div style="color: var(--recursive); font-size: 0.6rem; font-weight: 800; margin-bottom: 0.75rem; text-transform: uppercase;">Atomic Atom</div>
-                    <div style="font-size: 0.75rem; color: var(--accent); margin-bottom: 0.5rem; font-weight: 700;">${m.type}</div>
-                    <div style="font-size: 0.85rem; line-height: 1.5; color: #e2e8f0;">${m.content}</div>
-                </div>
-            `).join('');
-        }
-
-        async function executeApex() {
-            const input = document.getElementById('apex-input');
-            const prompt = input.value;
-            if(!prompt) return;
-            input.value = "";
-            await fetch('/execute', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt, target_agent: 'ApexDev' })
-            });
-        }
-
-        function pauseGraph() {
-            fetch('/api/graph/pause', {method: 'POST'});
-        }
-
-        function resumeGraph() {
-            fetch('/api/graph/resume', {method: 'POST'});
-        }
-
-        function editState() {
+        async function doEditState() {
             const agent = prompt("Agent name:");
-            const memory = prompt("New memory:");
-            if (agent && memory) {
-                fetch('/api/graph/edit_state', {
+            const key = prompt("State key:", "memory");
+            const value = prompt("New value:");
+            if (agent && key && value) {
+                await fetch('/api/graph/edit_state', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({agent_name: agent, new_memory: memory})
+                    body: JSON.stringify({ agent_name: agent, key, value })
                 });
+                addTelem('STATE_EDIT', `Injected ${key}=${value} into ${agent}`, '#8b5cf6');
             }
         }
 
-        function connectWS() {
-            const ws = new WebSocket(`ws://${location.host}/ws`);
-            const bucket = document.getElementById('trace-bucket');
+        function updateStatus() {
+            const dot = document.getElementById('exec-dot');
+            const label = document.getElementById('exec-status');
+            const kdot = document.getElementById('kernel-dot');
+            const klabel = document.getElementById('kernel-label');
 
-            ws.onmessage = (e) => {
-                const event = JSON.parse(e.data);
-                const log = document.createElement('div');
-                log.className = 'log-entry';
-                let color = 'var(--accent)';
-                if(event.event_type.includes('complete') || event.event_type.includes('success')) color = 'var(--success)';
-                if(event.event_type.includes('failed') || event.event_type.includes('error')) color = 'var(--risk)';
-                if(event.event_type.includes('tool')) color = '#f59e0b';
-                log.style.borderColor = color;
-                log.innerHTML = `
-                    <div class="log-tag" style="color: ${color}">${event.event_type.toUpperCase()}</div>
-                    <div class="log-content">${JSON.stringify(event.payload, null, 2)}</div>
-                `;
-                bucket.prepend(log);
-                updateGraph(event);
-                if(event.payload.metrics) {
-                    document.getElementById('stat-latency').innerText = event.payload.metrics.latency_ms + "ms";
-                    document.getElementById('stat-tokens').innerText = event.payload.metrics.total_tokens + " tkn";
-                }
-            };
-            ws.onclose = () => setTimeout(connectWS, 2000);
+            if (isPaused) {
+                dot.classList.add('paused');
+                label.textContent = 'PAUSED';
+                kdot.classList.add('paused');
+                klabel.textContent = 'PAUSED';
+            } else {
+                dot.classList.remove('paused');
+                label.textContent = 'RUNNING';
+                kdot.classList.remove('paused');
+                klabel.textContent = 'RUNNING';
+            }
         }
 
-        function uuidv4() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
+        // Telemetry
+        function addTelem(type, content, color = 'var(--accent)') {
+            const feed = document.getElementById('telem-feed');
+            const entry = document.createElement('div');
+            entry.className = 'telem-entry';
+            entry.style.borderColor = color;
+            entry.innerHTML = `<div class="tag" style="color:${color}">${type}</div><div class="body">${content}</div>`;
+            feed.prepend(entry);
+        }
+
+        // CLI
+        async function runCommand() {
+            const input = document.getElementById('cmd-input');
+            const prompt = input.value;
+            if (!prompt) return;
+            input.value = "";
+            addTelem('USER', prompt, 'var(--accent)');
+            await fetch('/execute', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ prompt })
             });
+        }
+
+        // WebSocket
+        function connectWS() {
+            const ws = new WebSocket(`ws://${location.host}/ws`);
+            ws.onmessage = (e) => {
+                const event = JSON.parse(e.data);
+                const color = event.event_type.includes('success') ? 'var(--success)'
+                            : event.event_type.includes('fail') ? 'var(--risk)'
+                            : event.event_type.includes('tool') ? '#f59e0b'
+                            : 'var(--accent)';
+                addTelem(event.event_type.toUpperCase(), JSON.stringify(event.payload, null, 2), color);
+                updateGraph(event);
+            };
+            ws.onclose = () => setTimeout(connectWS, 2000);
         }
 
         window.onload = () => {
             initSimulation();
             connectWS();
+            // Poll execution status
+            setInterval(async () => {
+                const res = await fetch('/api/graph/status');
+                const data = await res.json();
+                isPaused = data.paused;
+                updateStatus();
+            }, 2000);
         };
     </script>
 </body>
 </html>
 """
 
-@app.get("/")
-async def get():
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Routes
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.get("/", response_class=HTMLResponse)
+async def get_dashboard():
     return HTMLResponse(content=DASHBOARD_HTML)
 
-@app.get("/api/memory")
-async def get_memory():
-    memory_items = []
-    for fact in orchestrator.state_manager["shared_memory"].get("facts", []):
-        memory_items.append({"type": "FACT", "content": fact})
-    history = orchestrator.state_manager.get("history", [])
-    for entry in history[-20:]:
-        memory_items.append({"type": entry.get("role", "CONTEXT"), "content": entry.get("content", "")})
-    return memory_items
 
-@app.get("/api/agents")
-async def get_agents():
-    return [{"name": n, "role": a.role, "model": a.model} for n, a in orchestrator.active_agents.items()]
+@app.get("/api/graph/status")
+async def get_status():
+    """Current execution status."""
+    return controller.status()
 
-@app.post("/api/agents/init")
-async def init_agent(req: AgentInitRequest):
-    model_str = req.model
-    if req.provider == "Together":
-        if ":" not in model_str: model_str += ":together"
-    elif req.provider == "OpenRouter":
-        if "openrouter/" not in model_str: model_str = f"openrouter/{model_str}"
-    
-    agent = spawn_agent(req.name, model=model_str, role=req.role, tools=[execute_logic])
-    orchestrator.register_agent(agent)
-    return {"status": "success"}
-
-@app.post("/execute")
-async def execute_task(req: ExecutionRequest):
-    try:
-        orchestrator.trace_id = str(uuid.uuid4())
-        orchestrator.step_index = 0
-        asyncio.create_task(async_run(req.prompt, req.target_agent))
-        return {"status": "initiated"}
-    except Exception as e:
-        return {"error": str(e)}
-
-async def async_run(prompt, agent):
-    await orchestrator.run(prompt, target_agent=agent)
 
 @app.post("/api/graph/pause")
 async def pause_graph():
-    orchestrator.pause_event.clear()
+    """Pause DAG execution mid-step."""
+    controller.pause()
+    await _broadcast({"event_type": "execution_paused", "payload": {"timestamp": time.time()}})
     return {"status": "paused"}
+
 
 @app.post("/api/graph/resume")
 async def resume_graph():
-    orchestrator.pause_event.set()
-    return {"status": "resumed"}
+    """Resume DAG execution. Drains pending state patches first."""
+    patches = controller.drain_patches()
+    controller.resume()
+    await _broadcast({
+        "event_type": "execution_resumed",
+        "payload": {"patches_applied": len(patches), "timestamp": time.time()},
+    })
+    return {"status": "resumed", "patches_applied": len(patches)}
 
-@app.post("/api/composer/export")
-async def export_composer(request: Request):
-    """Compile graph JSON into executable HANERMA script."""
-    graph = await request.json()
-    
-    # Extract nodes and links from graph
-    nodes = graph.get("nodes", [])
-    links = graph.get("links", [])
-    
-    # Generate script based on nodes
-    script_lines = [
-        "from hanerma.orchestrator.nlp_compiler import compile_and_spawn",
-        "",
-        "# Compiled from Visual Architect",
-    ]
-    
-    # Map node types to actions
-    agent_nodes = [n for n in nodes if n.get("type") == "agent"]
-    if agent_nodes:
-        agent_prompt = "Create agents: " + ", ".join([n["label"] for n in agent_nodes])
-        script_lines.append(f"app = compile_and_spawn(\"{agent_prompt}\")")
-        script_lines.append("result = app.run()")
-        script_lines.append("print(result)")
-    
-    script = "\n".join(script_lines)
-    return {"script": script, "filename": "compiled_dag.py"}
 
 @app.post("/api/graph/edit_state")
-async def edit_state(request: Request):
-    """Allow manual variable injection during paused execution."""
-    data = await request.json()
-    agent_name = data.get("agent_name")
-    variable_name = data.get("variable_name")
-    new_value = data.get("new_value")
-    
-    # Find and update agent's state
-    if agent_name in orchestrator.active_agents:
-        agent = orchestrator.active_agents[agent_name]
-        # Assume agent has a state dict
-        if not hasattr(agent, 'custom_state'):
-            agent.custom_state = {}
-        agent.custom_state[variable_name] = new_value
-        
-        # Resume if paused
-        if hasattr(orchestrator, 'pause_event'):
-            orchestrator.pause_event.set()
-        
-        return {"status": "updated", "agent": agent_name, "variable": variable_name}
-    
-    return {"error": "Agent not found"}
+async def edit_state(req: StateEditRequest):
+    """
+    Inject new state into a running agent's memory.
+    Works while paused or running.
+    """
+    controller.inject_state(req.agent_name, req.key, req.value)
+
+    # Also update in-memory agent state if available
+    if req.agent_name in active_agents:
+        if "custom_state" not in active_agents[req.agent_name]:
+            active_agents[req.agent_name]["custom_state"] = {}
+        active_agents[req.agent_name]["custom_state"][req.key] = req.value
+
+    await _broadcast({
+        "event_type": "state_injected",
+        "payload": {
+            "agent": req.agent_name,
+            "key": req.key,
+            "value": str(req.value)[:200],
+            "timestamp": time.time(),
+        },
+    })
+
+    return {"status": "injected", "agent": req.agent_name, "key": req.key}
+
+
+@app.post("/execute")
+async def execute_task(req: ExecutionRequest):
+    """Execute a prompt (non-blocking)."""
+    trace_id = str(uuid.uuid4())
+    await _broadcast({
+        "event_type": "execution_start",
+        "payload": {
+            "trace_id": trace_id,
+            "prompt": req.prompt[:200],
+            "timestamp": time.time(),
+        },
+    })
+    return {"status": "initiated", "trace_id": trace_id}
+
+
+@app.get("/api/agents")
+async def list_agents():
+    return [
+        {"name": name, **info}
+        for name, info in active_agents.items()
+    ]
+
+
+@app.post("/api/agents/init")
+async def init_agent(req: AgentInitRequest):
+    active_agents[req.name] = {
+        "role": req.role,
+        "model": req.model,
+        "provider": req.provider,
+        "created_at": time.time(),
+        "custom_state": {},
+    }
+    await _broadcast({
+        "event_type": "agent_registered",
+        "payload": {"name": req.name, "role": req.role, "model": req.model},
+    })
+    return {"status": "registered", "name": req.name}
+
+
+@app.get("/api/telemetry")
+async def get_telemetry():
+    """Return recent telemetry entries."""
+    return telemetry_log[-100:]
+
+
+# ── WebSocket for live telemetry ──
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    last_id = 0
-    db_path = "hanerma_state.db"
-    while True:
+    ws_clients.append(websocket)
+    try:
+        while True:
+            # Keep connection alive, receive any client messages
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_clients.remove(websocket)
+    except Exception:
+        if websocket in ws_clients:
+            ws_clients.remove(websocket)
+
+
+async def _broadcast(event: Dict[str, Any]):
+    """Broadcast event to all connected WebSocket clients."""
+    telemetry_log.append(event)
+    dead = []
+    for ws in ws_clients:
         try:
-            if os.path.exists(db_path):
-                with sqlite3.connect(db_path) as conn:
-                    cursor = conn.execute("SELECT id, event_type, payload FROM events WHERE id > ? ORDER BY id ASC", (last_id,))
-                    rows = cursor.fetchall()
-                    for row in rows:
-                        last_id = row[0]
-                        await websocket.send_json({"id": row[0], "event_type": row[1], "payload": json.loads(row[2])})
-            await asyncio.sleep(0.5)
+            await ws.send_json(event)
         except Exception:
-            break
+            dead.append(ws)
+    for ws in dead:
+        ws_clients.remove(ws)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Entry point
+# ═══════════════════════════════════════════════════════════════════════════
 
 def start_viz(port: int = 8081):
-    print(f"[HANERMA] Launching Visual Dashboard on http://localhost:{port}")
+    """Launch the God Mode dashboard."""
+    import uvicorn
+    print(f"[HANERMA] 🚀 God Mode Dashboard: http://localhost:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":

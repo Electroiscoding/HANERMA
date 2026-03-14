@@ -11,10 +11,10 @@ from hanerma.orchestrator.message_bus import DistributedEventBus
 from hanerma.state.models import HANERMAState
 from hanerma.reliability.risk_engine import FailurePredictor
 from hanerma.reliability.symbolic_reasoner import SymbolicReasoner
-from hanerma.routing.model_router import ModelRouter
+from hanerma.routing.model_router import BestModelRouter
 from hanerma.optimization.ast_analyzer import ParallelASTAnalyzer
 from hanerma.autoprompt.enhancer import AutoPromptEnhancer
-from hanerma.interface.empathy import EmpathyHandler
+from hanerma.interface.empathy import SupervisorHealer
 from hanerma.memory.manager import HCMSManager
 
 import networkx as nx
@@ -27,7 +27,7 @@ class HANERMAOrchestrator:
     def __init__(self, model: str = "auto", tokenizer=None, context_window: int = 128000, 
                  node_id: str = None, raft_peers: List[str] = None):
         self.orchestrator_id = str(uuid.uuid4())
-        self.router = ModelRouter()
+        self.router = BestModelRouter()
         self.default_model = self.router.route_request("", 0) if model == "auto" else model
         self.tokenizer = tokenizer
         self.context_window = context_window
@@ -43,7 +43,7 @@ class HANERMAOrchestrator:
         self.risk_engine = FailurePredictor()
         self.symbolic_reasoner = SymbolicReasoner()
         self.ast_analyzer = ParallelASTAnalyzer()
-        self.empathy = EmpathyHandler()
+        self.empathy = SupervisorHealer()
         self.manager = HCMSManager(tokenizer, self.bus.raft)  # Use raft for state persistence
         self.user_style: Dict[str, Any] = {}
         self.interaction_count = 0
@@ -57,11 +57,15 @@ class HANERMAOrchestrator:
         """Background task to extract user style every 5 interactions."""
         while True:
             await asyncio.sleep(30)
-            if self.interaction_count >= 5:
-                style = await self.manager.extract_user_style()
-                if style:
-                    self.user_style = style
-                self.interaction_count = 0
+            # Use memory manager's style extraction
+            style = await self.manager.extract_user_style()
+            if style:
+                self.user_style = style
+                print(f"[HANERMA] User style updated: {self.manager.get_user_style_summary()}")
+
+    def inject_style_into_agent_prompt(self, agent_name: str, base_prompt: str) -> str:
+        """Inject user style into agent system prompts."""
+        return self.manager.inject_user_style_into_prompt(base_prompt)
 
     def register_agent(self, agent: BaseAgent):
         """Registers an agent into the orchestrator."""

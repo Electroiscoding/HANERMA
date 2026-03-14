@@ -1,7 +1,11 @@
 from typing import Dict, Any, Optional
 from hanerma.memory.manager import HCMSManager
+from hanerma.state.raft_consensus import RaftConsensus
 import hashlib
 import json
+import logging
+
+logger = logging.getLogger("hanerma.state_manager")
 
 class MultitenantStateManager:
     """
@@ -42,22 +46,34 @@ class MultitenantStateManager:
         return hashlib.sha256(key_str.encode()).hexdigest()
     
     def get_cached_response(self, prompt: str, agent_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Retrieve cached response if available and context unchanged."""
+        """Retrieve cached response with distributed consistency."""
         cache_key = self.get_cache_key(prompt, agent_config)
         
-        # Query bus for cached response (assuming bus has query method)
-        if self.bus:
-            # This would need bus to have a query method, for now simulate
-            cached = getattr(self.bus, 'get_cached_response', lambda k: None)(cache_key)
-            if cached:
-                # Verify context hasn't drifted (simple check)
-                return cached
-        return None
+        # Query distributed cache through Raft
+        query = {
+            "type": "query_cache",
+            "cache_key": cache_key
+        }
+        
+        consensus_result = self.raft_consensus.query_distributed(query)
+        
+        if consensus_result.success:
+            cached_data = consensus_result.data
+            logger.info(f"[Distributed] Retrieved cached response with consensus: {consensus_result.term}")
+            return cached_data
+        else:
+            logger.error(f"[Distributed] Failed to query cache: {consensus_result.error}")
+            return None
     
     def set_cached_response(self, prompt: str, agent_config: Dict[str, Any], response: Dict[str, Any]):
-        """Persist response in KV cache."""
+        """Set cached response with distributed consistency."""
         cache_key = self.get_cache_key(prompt, agent_config)
         
+        operation = {
+            "type": "store_cache",
+            "cache_key": cache_key,
+            "response": response
+        }
         cache_data = {
             "key": cache_key,
             "response": response,

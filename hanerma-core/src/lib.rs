@@ -2,6 +2,7 @@
 
 mod dag;
 mod state;
+mod memory;
 
 use std::collections::HashMap;
 
@@ -123,5 +124,6 @@ fn hanerma_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyRustEngine>()?;
     m.add_class::<PyNodeResult>()?;
     m.add_class::<state::PyStateCapacitor>()?;
+    m.add_class::<memory::PyMemoryIndex>()?;
     Ok(())
 }
