@@ -337,22 +337,34 @@ class XervCrayonAdapter(BaseHyperTokenizer):
     def _compress_protected_only(self, text: str, target_ratio: float) -> str:
         """
         Additional compression for non-protected text only, ensuring AST preservation.
+        Uses grammatical heuristic analysis instead of naive duplicate word matching.
         """
-        # This is a simplified fallback - in practice, we'd do more sophisticated
-        # compression of natural language parts while preserving code structures
         words = text.split()
         if len(words) == 0:
             return text
             
-        # Keep essential words, remove only obvious redundancies
         essential_words = []
         prev_word = None
         
+        # Comprehensive list of low-information grammatical words to strip
+        stopwords = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "is", "are", "was", "were", "be", "been", "being"}
+
+        import re
         for word in words:
-            # Skip duplicate consecutive words (simple redundancy)
-            if word != prev_word:
+            # Always preserve code-like or structural tokens
+            if re.search(r'[{}[\]()=;:_<>]', word):
                 essential_words.append(word)
-            prev_word = word
+                prev_word = word
+                continue
+
+            word_lower = word.lower()
+            if word_lower in stopwords:
+                continue
+
+            if word_lower != prev_word:
+                essential_words.append(word)
+
+            prev_word = word_lower
         
         return ' '.join(essential_words)
 

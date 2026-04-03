@@ -1,56 +1,28 @@
-"""
-Raft Consensus Implementation for HANERMA Distributed State Management.
-
-Implements the Raft algorithm for distributed consistency across HANERMA nodes.
-Provides mathematical guarantees of safety and consistency as required by reasonborn.md.
-"""
-
 import asyncio
 import json
 import logging
 import time
-from typing import Dict, List, Optional, Any, Set
+import random
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger("hanerma.raft")
 
-class RaftMessageType(Enum):
-    """Types of Raft messages."""
-    REQUEST_VOTE = "request_vote"
-    RESPONSE_VOTE = "response_vote"
-    REQUEST_APPEND = "request_append"
-    RESPONSE_APPEND = "response_append"
-    REQUEST_INSTALL = "request_install"
-    RESPONSE_INSTALL = "response_install"
-    HEARTBEAT = "heartbeat"
-
 class RaftNodeState(Enum):
-    """Possible states of a Raft node."""
     FOLLOWER = "follower"
     CANDIDATE = "candidate"
     LEADER = "leader"
 
 @dataclass
 class LogEntry:
-    """Raft log entry."""
     term: int
     index: int
     command: str
     timestamp: float
 
 @dataclass
-class RaftMessage:
-    """Raft protocol message."""
-    msg_type: str
-    term: int
-    sender_id: str
-    data: Dict[str, Any]
-    timestamp: float
-
-@dataclass
 class ConsensusResult:
-    """Result of a Raft consensus operation."""
     success: bool
     term: int
     data: Optional[Dict[str, Any]] = None
@@ -59,203 +31,194 @@ class ConsensusResult:
 class RaftConsensus:
     """
     Real Raft consensus implementation for distributed state management.
-    
-    Replaces simulated distributed queries with mathematically proven consensus.
+    Performs physical `asyncio` network calls to peers for Leader Election and Log Replication.
     """
-    
     def __init__(self, node_id: str, cluster_nodes: Dict[str, Any]):
         self.node_id = node_id
+        # Expecting cluster_nodes values to be dicts with "host" and "port"
         self.cluster_nodes = cluster_nodes
+
         self.current_term = 0
         self.voted_for: Optional[str] = None
         self.log: List[LogEntry] = []
+
         self.commit_index = 0
+        self.last_applied = 0
         self.state = RaftNodeState.FOLLOWER
-        self.last_heartbeat: Dict[str, float] = {}
-        self.election_timeout = 5.0  # seconds
-        self.heartbeat_interval = 1.0  # seconds
+
+        self.next_index: Dict[str, int] = {}
+        self.match_index: Dict[str, int] = {}
+
+        self.election_timeout = random.uniform(1.5, 3.0)
+        self.last_heartbeat_time = time.time()
+
+        self._election_task: Optional[asyncio.Task] = None
         
         logger.info(f"[RAFT] Node {node_id} initialized with {len(cluster_nodes)} cluster nodes")
-    
-    def propose_operation(self, operation: Dict[str, Any]) -> ConsensusResult:
-        """Propose an operation to the cluster for consensus."""
+
+    async def start(self):
+        self._election_task = asyncio.create_task(self._election_loop())
+
+    async def stop(self):
+        if self._election_task:
+            self._election_task.cancel()
+
+    async def _election_loop(self):
+        while True:
+            try:
+                await asyncio.sleep(0.1)
+                if self.state == RaftNodeState.LEADER:
+                    await self._send_heartbeats()
+                else:
+                    if time.time() - self.last_heartbeat_time > self.election_timeout:
+                        await self._start_election()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"[RAFT] Election loop error: {e}")
+
+    async def _send_rpc(self, host: str, port: int, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Perform physical TCP connection to a peer for an RPC call."""
         try:
-            # Create log entry for the operation
-            log_entry = LogEntry(
-                term=self.current_term,
-                index=len(self.log),
-                command=json.dumps(operation),
-                timestamp=time.time()
-            )
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=1.0)
+            writer.write(json.dumps(payload).encode())
+            await writer.drain()
             
-            # Try to get consensus through Raft protocol
-            consensus_result = asyncio.run(self._append_log_entry(log_entry))
+            data = await asyncio.wait_for(reader.read(4096), timeout=1.0)
+            writer.close()
+            await writer.wait_closed()
             
-            if consensus_result.success:
-                logger.info(f"[RAFT] Operation consensus reached in term {self.current_term}")
-                return ConsensusResult(
-                    success=True,
-                    term=self.current_term,
-                    data=consensus_result.data
-                )
-            else:
-                logger.error(f"[RAFT] Failed to reach consensus: {consensus_result.error}")
-                return ConsensusResult(
-                    success=False,
-                    term=self.current_term,
-                    error=consensus_result.error
-                )
-                
-        except Exception as e:
-            logger.error(f"[RAFT] Exception during operation proposal: {e}")
-            return ConsensusResult(
-                success=False,
-                term=self.current_term,
-                error=f"Exception: {str(e)}"
-            )
-    
-    def query_distributed(self, query: Dict[str, Any]) -> ConsensusResult:
-        """Query distributed state from the cluster."""
-        try:
-            # Create query operation
-            operation = {
-                "type": "query",
-                "query": query,
-                "requester": self.node_id
-            }
+            return json.loads(data.decode())
+        except Exception:
+            # Drop failed connections (simulating partition or crash)
+            return None
+
+    async def _start_election(self):
+        logger.info(f"[RAFT] Node {self.node_id} starting election for term {self.current_term + 1}")
+        self.state = RaftNodeState.CANDIDATE
+        self.current_term += 1
+        self.voted_for = self.node_id
+        self.last_heartbeat_time = time.time()
+        self.election_timeout = random.uniform(1.5, 3.0)
+
+        votes = 1 # Vote for self
+        required_votes = (len(self.cluster_nodes) + 1) // 2 + 1
+
+        if len(self.cluster_nodes) == 0:
+            self._become_leader()
+            return
             
-            # Get consensus on the query
-            consensus_result = asyncio.run(self._handle_query(operation))
+        last_log_index = len(self.log) - 1
+        last_log_term = self.log[-1].term if self.log else 0
             
-            if consensus_result.success:
-                logger.info(f"[RAFT] Query consensus reached in term {self.current_term}")
-                return ConsensusResult(
-                    success=True,
-                    term=self.current_term,
-                    data=consensus_result.data
-                )
-            else:
-                logger.error(f"[RAFT] Failed to reach query consensus: {consensus_result.error}")
-                return ConsensusResult(
-                    success=False,
-                    term=self.current_term,
-                    error=consensus_result.error
-                )
-                
-        except Exception as e:
-            logger.error(f"[RAFT] Exception during distributed query: {e}")
-            return ConsensusResult(
-                success=False,
-                term=self.current_term,
-                error=f"Exception: {str(e)}"
-            )
-    
-    async def _append_log_entry(self, log_entry: LogEntry) -> ConsensusResult:
-        """Append log entry using Raft consensus protocol."""
-        # Implementation of Raft log replication
-        # This is a simplified version - full implementation would include:
-        # - Leader election
-        # - Log replication to majority
-        # - Commit index management
-        # - Safety checks
-        
-        # For now, simulate successful consensus
-        # In production, this would be a full Raft implementation
-        
-        # Simulate consensus delay
-        await asyncio.sleep(0.01)  # 10ms consensus delay
-        
-        # Add to local log
-        self.log.append(log_entry)
-        self.commit_index = len(self.log) - 1
-        
-        return ConsensusResult(
-            success=True,
-            term=self.current_term,
-            data={"log_index": log_entry.index, "committed": True}
-        )
-    
-    async def _handle_query(self, operation: Dict[str, Any]) -> ConsensusResult:
-        """Handle a distributed query operation."""
-        query_type = operation.get("query", {}).get("type", "unknown")
-        
-        if query_type == "cache":
-            # Handle cache queries
-            cache_key = operation.get("query", {}).get("cache_key", "")
-            return await self._handle_cache_query(cache_key)
-        elif query_type == "state":
-            # Handle state queries
-            return await self._handle_state_query(operation)
-        else:
-            return ConsensusResult(
-                success=False,
-                term=self.current_term,
-                error=f"Unknown query type: {query_type}"
-            )
-    
-    async def _handle_cache_query(self, cache_key: str) -> ConsensusResult:
-        """Handle distributed cache query."""
-        # In a real implementation, this would query the distributed cache
-        # For now, simulate cache miss
-        
-        logger.debug(f"[RAFT] Cache query for key: {cache_key}")
-        
-        # Simulate cache lookup
-        # In production, this would be a distributed cache like Redis
-        
-        return ConsensusResult(
-            success=True,
-            term=self.current_term,
-            data={"cache_key": cache_key, "value": None, "hit": False}
-        )
-    
-    async def _handle_state_query(self, operation: Dict[str, Any]) -> ConsensusResult:
-        """Handle distributed state query."""
-        # Return current cluster state
-        state_info = {
-            "leader": self.node_id if self.state == RaftNodeState.LEADER else None,
+        payload = {
+            "type": "RequestVote",
             "term": self.current_term,
-            "commit_index": self.commit_index,
-            "log_length": len(self.log),
-            "cluster_size": len(self.cluster_nodes)
+            "candidate_id": self.node_id,
+            "last_log_index": last_log_index,
+            "last_log_term": last_log_term
         }
         
+        # Gather votes asynchronously
+        tasks = []
+        for peer_id, addr in self.cluster_nodes.items():
+            tasks.append(self._send_rpc(addr['host'], addr['port'], payload))
+
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        for response in responses:
+            if isinstance(response, dict) and response.get("vote_granted"):
+                votes += 1
+
+        if votes >= required_votes:
+            self._become_leader()
+
+    def _become_leader(self):
+        logger.info(f"[RAFT] Node {self.node_id} became LEADER for term {self.current_term}")
+        self.state = RaftNodeState.LEADER
+        for peer in self.cluster_nodes:
+            self.next_index[peer] = len(self.log)
+            self.match_index[peer] = 0
+
+    async def _send_heartbeats(self):
+        self.last_heartbeat_time = time.time()
+        if len(self.cluster_nodes) == 0:
+            return
+
+        tasks = []
+        for peer_id, addr in self.cluster_nodes.items():
+            prev_log_index = self.next_index.get(peer_id, 0) - 1
+            prev_log_term = self.log[prev_log_index].term if prev_log_index >= 0 and prev_log_index < len(self.log) else 0
+            entries = self.log[prev_log_index + 1:]
+
+            payload = {
+                "type": "AppendEntries",
+                "term": self.current_term,
+                "leader_id": self.node_id,
+                "prev_log_index": prev_log_index,
+                "prev_log_term": prev_log_term,
+                "entries": [{"term": e.term, "index": e.index, "command": e.command, "timestamp": e.timestamp} for e in entries],
+                "leader_commit": self.commit_index
+            }
+            tasks.append(self._send_rpc(addr['host'], addr['port'], payload))
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    def receive_append_entries(self, term: int, leader_id: str, prev_log_index: int, prev_log_term: int, entries: List[Dict], leader_commit: int) -> bool:
+        if term < self.current_term:
+            return False
+
+        self.last_heartbeat_time = time.time()
+        
+        if term > self.current_term:
+            self.current_term = term
+            self.state = RaftNodeState.FOLLOWER
+            self.voted_for = None
+
+        if prev_log_index >= 0:
+            if prev_log_index >= len(self.log) or self.log[prev_log_index].term != prev_log_term:
+                return False
+
+        if entries:
+            for i, ent_dict in enumerate(entries):
+                idx = prev_log_index + 1 + i
+                entry = LogEntry(**ent_dict)
+                if idx < len(self.log):
+                    if self.log[idx].term != entry.term:
+                        self.log = self.log[:idx]
+                        self.log.append(entry)
+                else:
+                    self.log.append(entry)
+
+        if leader_commit > self.commit_index:
+            self.commit_index = min(leader_commit, len(self.log) - 1)
+
+        return True
+
+    async def propose_operation(self, operation: Dict[str, Any]) -> ConsensusResult:
+        if self.state != RaftNodeState.LEADER and len(self.cluster_nodes) > 0:
+            return ConsensusResult(success=False, term=self.current_term, error="Not leader")
+
+        log_entry = LogEntry(
+            term=self.current_term,
+            index=len(self.log),
+            command=json.dumps(operation),
+            timestamp=time.time()
+        )
+        self.log.append(log_entry)
+        
+        if len(self.cluster_nodes) == 0:
+            self.commit_index = len(self.log) - 1
+            return ConsensusResult(success=True, term=self.current_term, data={"log_index": log_entry.index, "committed": True})
+
+        # Send to peers immediately
+        await self._send_heartbeats()
+        
+        return ConsensusResult(success=True, term=self.current_term, data={"log_index": log_entry.index, "committed": False, "pending": True})
+
+    def query_distributed(self, query: Dict[str, Any]) -> ConsensusResult:
         return ConsensusResult(
             success=True,
             term=self.current_term,
-            data=state_info
+            data={"state": self.state.value, "commit_index": self.commit_index}
         )
-    
-    def get_current_timestamp(self) -> float:
-        """Get current timestamp for log entries."""
-        return time.time()
-    
-    def get_node_count(self) -> int:
-        """Get number of nodes in the cluster."""
-        return len(self.cluster_nodes)
-    
-    def get_current_leader(self) -> Optional[str]:
-        """Get current leader node ID."""
-        return self.node_id if self.state == RaftNodeState.LEADER else None
-    
-    def get_current_term(self) -> int:
-        """Get current Raft term."""
-        return self.current_term
-    
-    def get_commit_index(self) -> int:
-        """Get current commit index."""
-        return self.commit_index
-    
-    def is_healthy(self) -> bool:
-        """Check if Raft node is healthy."""
-        # Check if we've received heartbeats from other nodes
-        current_time = time.time()
-        healthy_nodes = 0
-        
-        for node_id, last_heartbeat in self.last_heartbeat.items():
-            if current_time - last_heartbeat < 10.0:  # 10 seconds timeout
-                continue
-            healthy_nodes += 1
-        
-        # Consider healthy if majority of nodes are responding
-        return healthy_nodes >= (len(self.cluster_nodes) // 2 + 1)
