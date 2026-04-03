@@ -43,3 +43,4 @@ htmlcov/
 *.sqlite
 data/hcms_store/
 logs/
+rust_test/
