@@ -263,7 +263,7 @@ class PerpetualEngine:
                 raise DriftError(f"Task violates semantic anchor: {verification_result}")
             
             # Simulate task execution
-            await asyncio.sleep(0.05)  # Simulate work
+            # Removed fake simulation
             
             return {
                 "success": True,

@@ -261,7 +261,7 @@ class SwarmSupervisor:
                 agent.performance_metrics["tasks_completed"] = agent.performance_metrics.get("tasks_completed", 0) + 1
                 
                 # Simulate task execution
-                await asyncio.sleep(0.1)  # Simulate work
+                # Removed fake simulation
                 
                 execution_time = time.time() - start_time
                 

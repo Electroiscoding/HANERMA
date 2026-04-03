@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package hanerma.rpc;
+
+service CUAHub {
+    // Bidirectional stream for continuous screen state and action commands
+    rpc StreamComputerUse (stream AgentState) returns (stream HubCommand) {}
+
+    // Unary RPCs for direct invocation
+    rpc Click (ClickRequest) returns (ActionResponse) {}
+    rpc TypeText (TypeRequest) returns (ActionResponse) {}
+    rpc TakeScreenshot (ScreenshotRequest) returns (ScreenshotResponse) {}
+
+    // System Heartbeat
+    rpc Heartbeat (HeartbeatPing) returns (HeartbeatPong) {}
+}
+
+message AgentState {
+    string agent_id = 1;
+    string vm_ip = 2;
+    bytes screen_buffer = 3;
+    int64 timestamp = 4;
+}
+
+message HubCommand {
+    string command_id = 1;
+    string action_type = 2; // "click", "type", "launch"
+    string payload_json = 3;
+}
+
+message ClickRequest {
+    string agent_id = 1;
+    int32 x = 2;
+    int32 y = 3;
+}
+
+message TypeRequest {
+    string agent_id = 1;
+    string text = 2;
+}
+
+message ScreenshotRequest {
+    string agent_id = 1;
+}
+
+message ActionResponse {
+    bool success = 1;
+    string error_message = 2;
+}
+
+message ScreenshotResponse {
+    bool success = 1;
+    bytes image_data = 2;
+    string error_message = 3;
+}
+
+message HeartbeatPing {
+    string agent_id = 1;
+    int64 timestamp = 2;
+}
+
+message HeartbeatPong {
+    bool acknowledged = 1;
+}
