@@ -208,21 +208,23 @@ class HANERMAOrchestrator:
         return self._validate_state_pre_execution()
 
     async def _rollback_to_last_valid_state(self, current_step: int):
-        """Performs MVCC rollback to the last valid state."""
+        """Performs MVCC rollback to the last valid state and prunes descendants using NetworkX."""
         last_valid_state = self.bus.get_last_valid_state(self.trace_id, current_step)
         if last_valid_state:
             self.state_manager = last_valid_state
-            # Prune failed branches from DAG (simplified - remove nodes after current step)
-            nodes_to_remove = []
-            for node_id in self.current_dag.nodes:
-                node_data = self.current_dag.nodes[node_id]['data']
-                # Assume nodes have step indices, remove those after failed step
-                if hasattr(node_data, 'step_index') and node_data['step_index'] >= current_step:
-                    nodes_to_remove.append(node_id)
-            for node_id in nodes_to_remove:
-                self.current_dag.remove_node(node_id)
+
+            nodes_to_remove = [n for n, d in self.current_dag.nodes(data=True)
+                             if d.get('data', {}).get('step_index', 0) >= current_step]
+
+            descendants = set()
+            for n in nodes_to_remove:
+                try:
+                    descendants.update(nx.descendants(self.current_dag, n))
+                except nx.NetworkXError:
+                    pass
+
+            self.current_dag.remove_nodes_from(set(nodes_to_remove).union(descendants))
         else:
-            # No valid state found, reset to initial
             self.state_manager = HANERMAState()
 
     async def _handle_node_failure(self, node_id: str, exception: Exception, failed_nodes: set):
@@ -282,8 +284,19 @@ class HANERMAOrchestrator:
             self.current_dag.nodes[node_id]['data']['writes'] = writes
             self.current_dag.nodes[node_id]['data']['reads'] = reads
             
-            # Recompute dependencies (simplified - could be more sophisticated)
-            # For now, assume dependencies don't change drastically
+            # Recompute graph dependencies for the injected node
+            edges_to_remove = list(self.current_dag.out_edges(node_id))
+            self.current_dag.remove_edges_from(edges_to_remove)
+
+            for other_node in self.current_dag.nodes():
+                if other_node == node_id:
+                    continue
+                other_data = self.current_dag.nodes[other_node]['data']
+                if 'reads' in other_data and 'writes' in other_data:
+                    if writes.intersection(other_data['reads']):
+                        self.current_dag.add_edge(node_id, other_node)
+                    if reads.intersection(other_data['writes']):
+                        self.current_dag.add_edge(other_node, node_id)
 
     async def _execute_node(self, node: Dict[str, Any]) -> Any:
         """
