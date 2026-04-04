@@ -25,6 +25,16 @@ logger = logging.getLogger("hanerma.model_router")
 #  Prompt Complexity Analyzer
 # ═══════════════════════════════════════════════════════════════════════════
 
+_CODE_INDICATORS = [
+    re.compile(r"^\s*(def |class |import |from |return |if |for |while |try:|except)"),
+    re.compile(r"[=!<>]="),
+    re.compile(r"\w+\(.*\)"),
+    re.compile(r"```"),
+    re.compile(r"^\s*#"),
+    re.compile(r"\{.*\}"),
+    re.compile(r"\[.*\]"),
+]
+
 
 def analyze_prompt_complexity(prompt: str) -> Dict[str, Any]:
     """
@@ -162,19 +172,10 @@ def _code_ratio(text: str) -> float:
     if not text.strip():
         return 0.0
     lines = text.strip().split("\n")
-    code_indicators = [
-        r"^\s*(def |class |import |from |return |if |for |while |try:|except)",
-        r"[=!<>]=",
-        r"\w+\(.*\)",
-        r"```",
-        r"^\s*#",
-        r"\{.*\}",
-        r"\[.*\]",
-    ]
     code_lines = 0
     for line in lines:
-        for pattern in code_indicators:
-            if re.search(pattern, line):
+        for prog in _CODE_INDICATORS:
+            if prog.search(line):
                 code_lines += 1
                 break
     return code_lines / len(lines)
