@@ -64,7 +64,8 @@ class LocalRuntime(RuntimeEnvironment):
         timestamp = int(time.time())
         filename = f"/tmp/hanerma_local_{timestamp}.png"
 
-        monitor = self.mss.monitors[1]
+        # Capture primary monitor (0 is all monitors combined, 1 is the first primary)
+        monitor = self.mss.monitors[1] if len(self.mss.monitors) > 1 else self.mss.monitors[0]
         sct_img = self.mss.grab(monitor)
 
         import mss.tools
@@ -133,10 +134,30 @@ class MultiplexedSSHRuntime(RuntimeEnvironment):
 
     async def take_screenshot(self) -> Dict[str, Any]:
         timestamp = int(time.time())
-        filename = f"/tmp/hanerma_ssh_{self.host}_{timestamp}.png"
-        cmd = f"import -window root {filename}"
-        await self._run_ssh(cmd)
-        return {"success": True, "path": filename, "host": self.host}
+        remote_filename = f"/tmp/hanerma_ssh_{self.host}_{timestamp}.png"
+        local_filename = f"/tmp/hanerma_local_ssh_{self.host}_{timestamp}.png"
+
+        # 1. Take screenshot on remote machine
+        cmd = f"import -window root {remote_filename}"
+        res = await self._run_ssh(cmd)
+        if not res["success"]:
+            return {"success": False, "error": f"Failed to capture remote screen: {res['stderr']}"}
+
+        # 2. SCP the image buffer back to the Orchestrator (Hub)
+        scp_proc = await asyncio.create_subprocess_exec(
+            "scp", f"{self.user}@{self.host}:{remote_filename}", local_filename,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await scp_proc.communicate()
+
+        if scp_proc.returncode != 0:
+            return {"success": False, "error": f"Failed to transfer image via scp: {stderr.decode()}"}
+
+        # 3. Cleanup remote image
+        await self._run_ssh(f"rm {remote_filename}")
+
+        return {"success": True, "path": local_filename, "host": self.host}
 
     async def _run_ssh(self, command: str) -> Dict[str, Any]:
         proc = await asyncio.create_subprocess_exec(

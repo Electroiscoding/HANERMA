@@ -96,7 +96,8 @@ class CUAgent:
         # Launch relies on typing for terminal/runner integration
         try:
             await self.runtime.type_text(app_path)
-            # In a full OS interaction, you'd press Enter
+            # Send physical Enter key
+            await self.runtime.type_text("\n")
             return CUAResult(success=True, action=CUAAction.LAUNCH)
         except Exception as e:
             return CUAResult(success=False, action=CUAAction.LAUNCH, error=str(e))
