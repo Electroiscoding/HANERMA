@@ -21,5 +21,15 @@ class Settings:
     MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "128000"))
     HCMS_VECTOR_DIMENSION = int(os.getenv("HCMS_VECTOR_DIMENSION", "1536"))
 
+    # Networking & Security
+    EVENT_BUS_HOST = os.getenv("EVENT_BUS_HOST", "127.0.0.1")
+    EVENT_BUS_PORT = int(os.getenv("EVENT_BUS_PORT", "50051"))
+
+    METRICS_HOST = os.getenv("METRICS_HOST", "127.0.0.1")
+    METRICS_PORT = int(os.getenv("METRICS_PORT", "8082"))
+
+    VIZ_SERVER_HOST = os.getenv("VIZ_SERVER_HOST", "127.0.0.1")
+    VIZ_SERVER_PORT = int(os.getenv("VIZ_SERVER_PORT", "8081"))
+
 
 settings = Settings()

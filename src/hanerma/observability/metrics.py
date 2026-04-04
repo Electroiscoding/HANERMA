@@ -14,7 +14,9 @@ Also provides MetricsTracker for in-process instrumentation.
 """
 
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+
+from hanerma.core.config import settings
 
 from prometheus_client import (
     CollectorRegistry,
@@ -214,8 +216,10 @@ def metrics_json():
     }
 
 
-def start_metrics_server(port: int = 8082):
+def start_metrics_server(host: Optional[str] = None, port: Optional[int] = None):
     """Start the standalone metrics server."""
     import uvicorn
-    print(f"[HANERMA] 📊 Prometheus metrics: http://localhost:{port}/metrics")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    h = host or settings.METRICS_HOST
+    p = port or settings.METRICS_PORT
+    print(f"[HANERMA] 📊 Prometheus metrics: http://{h}:{p}/metrics")
+    uvicorn.run(app, host=h, port=p)

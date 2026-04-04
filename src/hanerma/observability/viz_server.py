@@ -23,6 +23,8 @@ import threading
 import uuid
 from typing import Any, Dict, List, Optional
 
+from hanerma.core.config import settings
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -784,11 +786,13 @@ async def _broadcast(event: Dict[str, Any]):
 #  Entry point
 # ═══════════════════════════════════════════════════════════════════════════
 
-def start_viz(port: int = 8081):
+def start_viz(host: Optional[str] = None, port: Optional[int] = None):
     """Launch the God Mode dashboard."""
     import uvicorn
-    print(f"[HANERMA] 🚀 God Mode Dashboard: http://localhost:{port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    h = host or settings.VIZ_SERVER_HOST
+    p = port or settings.VIZ_SERVER_PORT
+    print(f"[HANERMA] 🚀 God Mode Dashboard: http://{h}:{p}")
+    uvicorn.run(app, host=h, port=p)
 
 if __name__ == "__main__":
     start_viz()

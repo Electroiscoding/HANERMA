@@ -5,6 +5,8 @@ import socket
 import logging
 from typing import Dict, Any, List, Set, Callable, Optional
 
+from hanerma.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 class DistributedEventBus:
@@ -13,10 +15,10 @@ class DistributedEventBus:
     Utilizes asyncio streams for robust networked message passing instead of UDP broadcasts.
     """
 
-    def __init__(self, node_id: str = None, host: str = "0.0.0.0", port: int = 50051):
+    def __init__(self, node_id: str = None, host: str = None, port: int = None, peers: List[str] = None):
         self.node_id = node_id or str(uuid.uuid4())
-        self.host = host
-        self.port = port
+        self.host = host or settings.EVENT_BUS_HOST
+        self.port = port or settings.EVENT_BUS_PORT
 
         # Local Pub/Sub
         self._subscribers: Dict[str, Set[Callable]] = {}
@@ -24,6 +26,11 @@ class DistributedEventBus:
 
         # Networked Peers (TCP)
         self.peers: Dict[str, tuple] = {}
+        if peers:
+            for peer in peers:
+                if ":" in peer:
+                    h, p = peer.split(":")
+                    self.peers[peer] = (h, int(p))
 
         self.server = None
         self._server_task = None
