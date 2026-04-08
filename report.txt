@@ -1,0 +1,231 @@
+File: ./mock_modules.py
+  - Line 2 (Mock/Simulate/Dummy): from unittest.mock import MagicMock
+  - Line 4 (Mock/Simulate/Dummy): # Create mock objects for heavy dependencies that are missing
+File: ./real_ai_system.py
+  - Line 69 (Mock/Simulate/Dummy): """Real AI system using actual LLM models - no simulation."""
+  - Line 226 (Mock/Simulate/Dummy): """Process input with real AI models - no simulation."""
+  - Line 243 (Mock/Simulate/Dummy): """Real Z3 solver - no simulation."""
+  - Line 313 (Mock/Simulate/Dummy): """Real computer use - no simulation."""
+  - Line 366 (Mock/Simulate/Dummy): """24/7/365 Perpetual Execution Engine - no simulation."""
+  - Line 512 (Mock/Simulate/Dummy): """Process with real AI - no simulation."""
+  - Line 525 (Mock/Simulate/Dummy): """Real computer use - no simulation."""
+  - Line 537 (Mock/Simulate/Dummy): """Real Docker control - no simulation."""
+  - Line 633 (Mock/Simulate/Dummy): print("OpenAI GPT, Ollama, or advanced local processing - no simulation.")
+File: ./test_community_system.py
+  - Line 107 (Intro/Fluff): "Zero-fluff mandate",
+File: ./run_tests.py
+  - Line 2 (Mock/Simulate/Dummy): from unittest.mock import MagicMock
+  - Line 5 (Missing Logic): pass
+  - Line 9 (Missing Logic): pass
+File: ./premium_dashboard.py
+  - Line 270 (Mock/Simulate/Dummy): // Simulate real-time data updates
+  - Line 272 (Mock/Simulate/Dummy): // Simulate agent activity
+  - Line 493 (Mock/Simulate/Dummy): // Simulate real-time updates
+File: ./run_all_tests.py
+  - Line 2 (Mock/Simulate/Dummy): from unittest.mock import MagicMock
+  - Line 5 (Missing Logic): pass
+  - Line 9 (Missing Logic): pass
+File: ./test_slice_15.py
+  - Line 18 (Mock/Simulate/Dummy): import unittest.mock as mock
+  - Line 398 (Intro/Fluff): print("\n✨ ALL FLUFF IS DEAD - THE SYSTEM IS READY FOR PRODUCTION!")
+File: ./contingency_protocols.py
+  - Line 47 (Intro/Fluff): return f"""The Rust compilation failed with error above. Do not rewrite entire file. Analyze the borrow-checker or PyO3 lifetime error, explain exactly why it failed, and output ONLY the patched Rust function that fixes it. Maintain Zero-Fluff mandate.
+File: ./test_slice_13.py
+  - Line 7 (Mock/Simulate/Dummy): - 13.2: Audio transcription (mock)
+  - Line 9 (Mock/Simulate/Dummy): - 13.4: Vision Router image processing (mock)
+  - Line 13 (Mock/Simulate/Dummy): - 13.8: Voice-to-NLP pipeline (mock)
+  - Line 21 (Mock/Simulate/Dummy): import unittest.mock as mock
+  - Line 64 (Mock/Simulate/Dummy): # Mock WhisperModel to avoid actual model loading
+  - Line 65 (Mock/Simulate/Dummy): with mock.patch('hanerma.interface.voice.WhisperModel') as mock_whisper:
+  - Line 66 (Mock/Simulate/Dummy): mock_model = mock.MagicMock()
+  - Line 69 (Mock/Simulate/Dummy): # Mock transcription result
+  - Line 71 (Mock/Simulate/Dummy): mock.MagicMock(text="Hello world"),
+  - Line 72 (Mock/Simulate/Dummy): mock.MagicMock(text="this is a test")
+  - Line 130 (Mock/Simulate/Dummy): # Mock requests to avoid actual API calls
+  - Line 131 (Mock/Simulate/Dummy): with mock.patch('hanerma.interface.voice.requests.post') as mock_post:
+  - Line 132 (Mock/Simulate/Dummy): mock_response = mock.MagicMock()
+  - Line 210 (Mock/Simulate/Dummy): # This would normally parse sys.argv, so we need to mock it
+  - Line 211 (Mock/Simulate/Dummy): with mock.patch('sys.argv', ['hanerma', '--help']):
+  - Line 260 (Mock/Simulate/Dummy): # Mock the entire pipeline
+  - Line 261 (Mock/Simulate/Dummy): with mock.patch('hanerma.interface.voice.WhisperModel') as mock_whisper, \
+  - Line 262 (Mock/Simulate/Dummy): mock.patch('hanerma.interface.voice.pyaudio') as mock_pyaudio, \
+  - Line 263 (Mock/Simulate/Dummy): mock.patch('hanerma.interface.voice.compile_and_spawn') as mock_compile:
+  - Line 266 (Mock/Simulate/Dummy): mock_model = mock.MagicMock()
+  - Line 270 (Mock/Simulate/Dummy): # Mock transcription
+  - Line 271 (Mock/Simulate/Dummy): mock_segments = [mock.MagicMock(text="Create a web scraper")]
+  - Line 274 (Mock/Simulate/Dummy): # Mock NLP compilation
+  - Line 275 (Mock/Simulate/Dummy): mock_app = mock.MagicMock()
+  - Line 287 (Mock/Simulate/Dummy): # Simulate transcription result
+File: ./test_zero_resistance.py
+  - Line 85 (Mock/Simulate/Dummy): # Simulate the one-liner experience
+File: ./test_slice_13_simple.py
+  - Line 13 (Mock/Simulate/Dummy): import unittest.mock as mock
+  - Line 22 (Mock/Simulate/Dummy): # Mock the dependencies to avoid import issues
+  - Line 23 (Mock/Simulate/Dummy): with mock.patch.dict('sys.modules', {
+  - Line 24 (Mock/Simulate/Dummy): 'faster_whisper': mock.MagicMock(),
+  - Line 25 (Mock/Simulate/Dummy): 'pyaudio': mock.MagicMock(),
+  - Line 26 (Mock/Simulate/Dummy): 'hanerma.orchestrator.nlp_compiler': mock.MagicMock()
+  - Line 55 (Mock/Simulate/Dummy): # Mock requests to avoid network calls
+  - Line 56 (Mock/Simulate/Dummy): with mock.patch('hanerma.interface.voice.requests') as mock_requests:
+  - Line 80 (Mock/Simulate/Dummy): # Mock the tool registry to avoid import issues
+  - Line 81 (Mock/Simulate/Dummy): with mock.patch.dict('sys.modules', {
+  - Line 82 (Mock/Simulate/Dummy): 'hanerma.tools.registry': mock.MagicMock()
+  - Line 94 (Mock/Simulate/Dummy): # Mock the tool decorator
+  - Line 99 (Mock/Simulate/Dummy): # Mock the registry
+  - Line 100 (Mock/Simulate/Dummy): mock_registry = mock.MagicMock()
+  - Line 103 (Mock/Simulate/Dummy): with mock.patch.dict('sys.modules', {'hanerma.tools.registry': mock.MagicMock()}):
+  - Line 104 (Mock/Simulate/Dummy): with mock.patch('hanerma.tools.registry.tool', mock_tool):
+File: ./quickstart.py
+  - Line 17 (Mock/Simulate/Dummy): # Step 1: Install (simulate - in production this would be pip install)
+  - Line 44 (Mock/Simulate/Dummy): # Simulate execution
+File: ./test_slice_14.py
+  - Line 17 (Mock/Simulate/Dummy): import unittest.mock as mock
+  - Line 25 (Mock/Simulate/Dummy): # Mock dependencies
+  - Line 26 (Mock/Simulate/Dummy): with mock.patch('hanerma.memory.manager.requests') as mock_requests:
+  - Line 27 (Mock/Simulate/Dummy): # Mock LLM response
+  - Line 28 (Mock/Simulate/Dummy): mock_response = mock.MagicMock()
+  - Line 35 (Mock/Simulate/Dummy): # Mock transactional bus
+  - Line 36 (Mock/Simulate/Dummy): mock_bus = mock.MagicMock()
+  - Line 47 (Mock/Simulate/Dummy): tokenizer = mock.MagicMock(spec=BaseHyperTokenizer)
+  - Line 73 (Mock/Simulate/Dummy): # Mock dependencies
+  - Line 74 (Mock/Simulate/Dummy): mock_bus = mock.MagicMock()
+  - Line 75 (Mock/Simulate/Dummy): tokenizer = mock.MagicMock()
+  - Line 111 (Mock/Simulate/Dummy): # Mock dependencies
+  - Line 112 (Mock/Simulate/Dummy): with mock.patch('hanerma.memory.manager.requests') as mock_requests:
+  - Line 113 (Mock/Simulate/Dummy): # Mock tiny model response
+  - Line 114 (Mock/Simulate/Dummy): mock_response = mock.MagicMock()
+  - Line 121 (Mock/Simulate/Dummy): mock_bus = mock.MagicMock()
+  - Line 122 (Mock/Simulate/Dummy): tokenizer = mock.MagicMock()
+  - Line 158 (Mock/Simulate/Dummy): # Mock transactional bus
+  - Line 159 (Mock/Simulate/Dummy): mock_bus = mock.MagicMock()
+  - Line 160 (Mock/Simulate/Dummy): tokenizer = mock.MagicMock()
+  - Line 173 (Mock/Simulate/Dummy): # Simulate style update
+  - Line 194 (Mock/Simulate/Dummy): # Mock dependencies
+  - Line 195 (Mock/Simulate/Dummy): with mock.patch('hanerma.memory.manager.requests') as mock_requests:
+  - Line 196 (Mock/Simulate/Dummy): mock_bus = mock.MagicMock()
+  - Line 197 (Mock/Simulate/Dummy): tokenizer = mock.MagicMock()
+  - Line 219 (Mock/Simulate/Dummy): # Mock LLM response for each test case
+  - Line 220 (Mock/Simulate/Dummy): mock_response = mock.MagicMock()
+  - Line 227 (Mock/Simulate/Dummy): # Mock recent prompts
+  - Line 251 (Mock/Simulate/Dummy): # Mock dependencies
+  - Line 252 (Mock/Simulate/Dummy): with mock.patch('hanerma.memory.manager.requests') as mock_requests:
+  - Line 253 (Mock/Simulate/Dummy): mock_response = mock.MagicMock()
+  - Line 258 (Mock/Simulate/Dummy): mock_bus = mock.MagicMock()
+  - Line 259 (Mock/Simulate/Dummy): tokenizer = mock.MagicMock()
+  - Line 305 (Mock/Simulate/Dummy): # Mock all dependencies
+  - Line 306 (Mock/Simulate/Dummy): with mock.patch('hanerma.memory.manager.requests') as mock_requests:
+  - Line 307 (Mock/Simulate/Dummy): mock_bus = mock.MagicMock()
+  - Line 308 (Mock/Simulate/Dummy): tokenizer = mock.MagicMock()
+  - Line 313 (Mock/Simulate/Dummy): # Mock style extraction response
+  - Line 314 (Mock/Simulate/Dummy): style_response = mock.MagicMock()
+  - Line 320 (Mock/Simulate/Dummy): # Mock speculative decode response
+  - Line 321 (Mock/Simulate/Dummy): speculative_response = mock.MagicMock()
+  - Line 327 (Mock/Simulate/Dummy): # Configure mock to return different responses
+File: ./test_contingency_system.py
+  - Line 24 (Intro/Fluff): if "Do not rewrite entire file" in response and "Zero-Fluff mandate" in response:
+File: ./src/hanerma/__init__.py
+  - Line 163 (Missing Logic): pass
+File: ./src/hanerma/resurrection/system.py
+  - Line 69 (Mock/Simulate/Dummy): # For now, simulate snapshot capture
+  - Line 239 (Mock/Simulate/Dummy): # For now, simulate successful restoration
+File: ./src/hanerma/agents/swarm_supervisor.py
+  - Line 255 (Mock/Simulate/Dummy): # Simulate agent execution
+  - Line 263 (Mock/Simulate/Dummy): # Simulate task execution
+  - Line 264 (Mock/Simulate/Dummy): await asyncio.sleep(0.1)  # Simulate work
+File: ./src/hanerma/agents/registry.py
+  - Line 21 (Intro/Fluff): """Zero-boilerplate factory for creating and wiring agent swarms."""
+File: ./src/hanerma/orchestrator/telemetry.py
+  - Line 24 (Placeholder): Simple placeholder token counter.
+  - Line 27 (Placeholder): # Placeholder: assume 4 chars per token roughly
+File: ./src/hanerma/orchestrator/state_manager.py
+  - Line 94 (Missing Logic): pass
+File: ./src/hanerma/orchestrator/engine.py
+  - Line 337 (Missing Logic): pass
+File: ./src/hanerma/orchestrator/consensus.py
+  - Line 351 (Missing Logic): pass
+  - Line 374 (Missing Logic): pass
+  - Line 407 (Missing Logic): pass
+File: ./src/hanerma/observability/export_logger.py
+  - Line 27 (Placeholder): # Implementation placeholder
+  - Line 28 (Missing Logic): pass
+File: ./src/hanerma/observability/viz_server.py
+  - Line 458 (Placeholder): <input type="text" id="cmd-input" placeholder="Type a command or natural language instruction..." onkeydown="if(event.key==='Enter') runCommand()">
+  - Line 468 (Mock/Simulate/Dummy): let simulation;
+  - Line 485 (Mock/Simulate/Dummy): simulation = d3.forceSimulation(graphNodes)
+  - Line 523 (Mock/Simulate/Dummy): .on("start", (e) => { if (!e.active) simulation.alphaTarget(0.3).restart(); e.subject.fx = e.x; e.subject.fy = e.y; })
+  - Line 525 (Mock/Simulate/Dummy): .on("end", (e) => { if (!e.active) simulation.alphaTarget(0); e.subject.fx = null; e.subject.fy = null; }));
+  - Line 539 (Mock/Simulate/Dummy): simulation.nodes(graphNodes);
+  - Line 540 (Mock/Simulate/Dummy): simulation.force("link").links(graphEdges);
+  - Line 541 (Mock/Simulate/Dummy): simulation.alpha(1).restart();
+File: ./src/hanerma/perpetual/engine.py
+  - Line 27 (Missing Logic): pass
+  - Line 265 (Mock/Simulate/Dummy): # Simulate task execution
+  - Line 266 (Mock/Simulate/Dummy): await asyncio.sleep(0.05)  # Simulate work
+File: ./src/hanerma/reliability/fact_extractor.py
+  - Line 13 (Missing Logic): pass
+File: ./src/hanerma/reliability/symbolic_reasoner.py
+  - Line 21 (Missing Logic): pass
+File: ./src/hanerma/reliability/adversarial.py
+  - Line 35 (Mock/Simulate/Dummy): # Simulation of flow execution
+File: ./src/hanerma/core/exceptions.py
+  - Line 3 (Missing Logic): pass
+  - Line 7 (Missing Logic): pass
+  - Line 11 (Missing Logic): pass
+File: ./src/hanerma/vm/controller.py
+  - Line 54 (Missing Logic): pass
+  - Line 59 (Missing Logic): pass
+File: ./src/hanerma/server/main.py
+  - Line 63 (Missing Logic): pass
+File: ./src/hanerma/interface/minimalist.py
+  - Line 7 (Intro/Fluff): The ultimate zero-boilerplate entry point.
+  - Line 24 (Intro/Fluff): """Helper to create an agent with minimal boilerplate."""
+File: ./src/hanerma/memory/hypertoken.py
+  - Line 23 (Placeholder): # Placeholder for actual compression logic
+File: ./src/hanerma/memory/manager.py
+  - Line 31 (Placeholder): # Placeholder for Neo4j (GraphRAG)
+  - Line 312 (Missing Logic): pass
+File: ./src/hanerma/memory/core.py
+  - Line 39 (Missing Logic): pass
+  - Line 62 (Placeholder): return True # Placeholder
+File: ./src/hanerma/memory/tiering.py
+  - Line 83 (Placeholder): # Placeholder for vector search retrieval
+File: ./src/hanerma/memory/adapters/neo4j_adapter.py
+  - Line 9 (Missing Logic): pass
+  - Line 15 (Missing Logic): pass
+File: ./src/hanerma/memory/compression/xerv_crayon_ext.py
+  - Line 63 (Mock/Simulate/Dummy): # Replaced simple LLM token skipping mock with real information-theoretic compression
+  - Line 159 (Missing Logic): pass
+File: ./src/hanerma/memory/compression/chunking_engine.py
+  - Line 54 (Placeholder): # Placeholder naive split
+File: ./src/hanerma/memory/providers/faiss_vector.py
+  - Line 30 (Mock/Simulate/Dummy): return [{"id": "0", "snippet": "Mock search"}]
+File: ./src/hanerma/memory/providers/neo4j_graph.py
+  - Line 32 (Missing Logic): pass
+File: ./src/hanerma/state/raft_consensus.py
+  - Line 162 (Mock/Simulate/Dummy): # For now, simulate successful consensus
+  - Line 165 (Mock/Simulate/Dummy): # Simulate consensus delay
+  - Line 199 (Mock/Simulate/Dummy): # For now, simulate cache miss
+  - Line 203 (Mock/Simulate/Dummy): # Simulate cache lookup
+File: ./src/hanerma/tools/local_detector.py
+  - Line 113 (Placeholder): 4. Fallback to cloud placeholder
+  - Line 174 (Missing Logic): pass
+File: ./src/hanerma/tools/registry.py
+  - Line 8 (Intro/Fluff): No hardcoded schemas.  No boilerplate.  Just:
+  - Line 13 (Missing Logic): ...
+  - Line 55 (Missing Logic): pass
+  - Line 202 (Missing Logic): ...
+  - Line 206 (Missing Logic): ...
+  - Line 276 (Missing Logic): ...
+File: ./scripts/run_benchmarks.py
+  - Line 24 (Placeholder): # Placeholder for actual runs
+File: ./hanerma-core/test_engine.py
+  - Line 12 (Mock/Simulate/Dummy): # ── Simulated workloads (sleep = fake I/O like an LLM call) ────────────────
+File: ./tests/unit/test_atomic_guards.py
+  - Line 29 (Placeholder): # For now, placeholder returns True
+
+--- Conclusion ---
+Total Python Files Analyzed: 143
+Files Containing Identified Elements: 47
+Total Lines of Code: 20506
+Total Lines with Identified Elements: 177
+Percentage of Codebase Affected: 0.86%
