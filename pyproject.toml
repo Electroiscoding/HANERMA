@@ -23,7 +23,7 @@ dependencies = [
     "openai>=1.0.0",          # OpenRouter + HuggingFace adapters
     "python-dotenv>=1.0.0",   # Secure credential loading
     "numpy>=1.24.0",
-    "xerv-crayon>=4.0.0"      # Tokenization + embeddings for HCMS
+    "xerv-crayon>=5.3.6"      # Tokenization + embeddings for HCMS
 ]
 
 [project.optional-dependencies]
