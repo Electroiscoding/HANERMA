@@ -21,7 +21,7 @@ dependencies = [
     "redis>=5.0.0",           # For multi-tenant state isolation
     "httpx>=0.24.1",          # For local LLM adapter
     "openai>=1.0.0",          # OpenRouter + HuggingFace adapters
-    "python-dotenv>=1.0.0",   # Secure credential loading
+    "python-dotenv>=1.2.2",   # Secure credential loading
     "numpy>=1.24.0",
     "xerv-crayon>=4.0.0"      # Tokenization + embeddings for HCMS
 ]
